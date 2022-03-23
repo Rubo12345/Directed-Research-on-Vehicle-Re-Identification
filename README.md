@@ -18,7 +18,5 @@ Vehicle ReID can be regarded as an instance level classification problem, i.e., 
 A network to predict the rotation degree of a randomly rotated vehicle image encourages it to focus on these reliable and shared geometric properties, which can help to easily recognize the rotation of an object.
 
 Steps: 1) Rotate an image Xi from Dataset by 0,90,180,270 degreees, to generate a new dataset Dsl = {Xi,r, Yr}. 
-      
        2) Feed the image Xi,r into a shared encoder ResNet18 (Orange).
-       
        3) To predict rotation class, high level representations need to be further condensed from ResNet18. To do this another subnetwork consisting of two basic ResNet           blocks are appended.
