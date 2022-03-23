@@ -20,3 +20,9 @@ A network to predict the rotation degree of a randomly rotated vehicle image enc
 Steps: 1) Rotate an image Xi from Dataset by 0,90,180,270 degreees, to generate a new dataset Dsl = {Xi,r, Yr}. 
        2) Feed the image Xi,r into a shared encoder ResNet18 (Orange).
        3) To predict rotation class, high level representations need to be further condensed from ResNet18. To do this another subnetwork consisting of two basic ResNet           blocks are appended.
+       4) High dimensional embedding vector is obtained: Fsl(Xi,r) = GAP[fse(fae(Xi,r;0ae);0se)]
+       5) To generate more compact clusters in embedded space, the consine classifier (CC) is employed to assign the rotation class.
+       6) The learnable parameters of CC is Wcc = [W1,...,Wj,....Wb], b = 4.
+       7) The probabilities of assigning the input image into each class canbe represented as P(Xi,r) = [p1, p2, p3,..pb], 
+          where each element is pj = softmax[cos(Fsl(xi,r),wj)]. 
+       8) Cross Entropy Loss = [CE(P(Xi,r),Yr)]
