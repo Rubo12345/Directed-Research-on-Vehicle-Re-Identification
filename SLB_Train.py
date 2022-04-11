@@ -32,15 +32,26 @@ def image_to_pixel(image):
     return pix_val_flat
 
 def input_to_4d_tensor(I):
-    Tensor = torch.Tensor(I)
-    Tensor = torch.reshape(Tensor,(1,3,Tensor.shape[0],Tensor.shape[1]))   #check this
+    # Tensor = torch.Tensor(I)
+    # Tensor = torch.reshape(Tensor,(1,3,Tensor.shape[0],Tensor.shape[1]))   #check this
+
+    ''' Function converts the image into a tensor as well as size it'''
+    preprocess = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+    input_image = Image.open(I)
+    Tensor = preprocess(input_image)
+    Tensor = torch.reshape(Tensor,(1,3,Tensor.shape[1],Tensor.shape[2]))
     return Tensor
 
 def Data_Rotation(Train_Images):
     Dsl = []
     for i in range(100):
-        image = mpimg.imread(Train_Images[i])
-        _4d_tensor = input_to_4d_tensor(image)
+        # image = mpimg.imread(Train_Images[i])
+        _4d_tensor = input_to_4d_tensor(Train_Images[i])
         R_0 = Rotation._apply_2d_rotation(_4d_tensor,0)
         R_90 = Rotation._apply_2d_rotation(_4d_tensor,90)
         R_180 = Rotation._apply_2d_rotation(_4d_tensor,180)
@@ -53,6 +64,11 @@ def Data_Rotation(Train_Images):
 
 Train_Images, Train_Labels, Train_Cams = data_image_labels(train_dir, train_list)
 Dsl = Data_Rotation(Train_Images)
+print(len(Dsl))
+print(Dsl[0].shape)
+print(Dsl[1].shape)
+print(Dsl[346].shape)
+
 
 '''#ResNet
 model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
