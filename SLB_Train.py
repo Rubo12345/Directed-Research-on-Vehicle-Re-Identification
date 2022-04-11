@@ -32,9 +32,6 @@ def image_to_pixel(image):
     return pix_val_flat
 
 def input_to_4d_tensor(I):
-    # Tensor = torch.Tensor(I)
-    # Tensor = torch.reshape(Tensor,(1,3,Tensor.shape[0],Tensor.shape[1]))   #check this
-
     ''' Function converts the image into a tensor as well as size it'''
     preprocess = transforms.Compose([
     transforms.Resize(256),
@@ -63,11 +60,24 @@ def Data_Rotation(Train_Images):
     return Dsl
 
 Train_Images, Train_Labels, Train_Cams = data_image_labels(train_dir, train_list)
-Dsl = Data_Rotation(Train_Images)
-print(len(Dsl))
-print(Dsl[0].shape)
-print(Dsl[1].shape)
-print(Dsl[346].shape)
+Dsl = Data_Rotation(Train_Images)  # Now for loop for DSL
+
+# input_batch = Dsl[0].unsqueeze(0)   #We don't need to do this as we already have a 4d_tensor.
+model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
+with torch.no_grad():
+    output = model(Dsl[0])
+probabilities = torch.nn.functional.softmax(output[0],dim=0)
+print(probabilities)
+print(max(probabilities))
+a = max(probabilities)
+print(list(probabilities).index(a))
+
+
+
+
+
+
+
 
 
 '''#ResNet
