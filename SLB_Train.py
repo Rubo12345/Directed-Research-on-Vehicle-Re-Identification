@@ -63,7 +63,7 @@ Train_Images, Train_Labels, Train_Cams = data_image_labels(train_dir, train_list
 Dsl = Data_Rotation(Train_Images)  # Now for loop for DSL
 
 # input_batch = Dsl[0].unsqueeze(0)   #We don't need to do this as we already have a 4d_tensor.
-model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
+model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet152', pretrained=False)
 with torch.no_grad():
     output = model(Dsl[0])
 probabilities = torch.nn.functional.softmax(output[0],dim=0)
