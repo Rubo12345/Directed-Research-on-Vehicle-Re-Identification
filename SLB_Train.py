@@ -1,8 +1,9 @@
+from curses import def_shell_mode
 from fileinput import filename
 from multiprocessing import BoundedSemaphore
 import numpy as np
 import torch
-from torchvision import transforms
+import torchvision
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import os.path as osp
@@ -10,6 +11,8 @@ from PIL import Image
 import sys
 sys.path.append('/home/rutu/WPI/Directed_Research/My_Approach_To_DR') 
 from Datasets import veri_train, Rotation
+from torch.utils.data import Dataset, DataLoader
+import pickle
 
 V = veri_train.VeRi()
 dataset_dir = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi'
@@ -33,11 +36,11 @@ def image_to_pixel(image):
 
 def input_to_4d_tensor(I):
     ''' Function converts the image into a tensor as well as size it'''
-    preprocess = transforms.Compose([
-    transforms.Resize(256),
-    transforms.CenterCrop(224),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    preprocess = torchvision.transforms.Compose([
+    torchvision.transforms.Resize(256),
+    torchvision.transforms.CenterCrop(224),
+    torchvision.transforms.ToTensor(),
+    torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
     input_image = Image.open(I)
     Tensor = preprocess(input_image)
@@ -45,8 +48,8 @@ def input_to_4d_tensor(I):
     return Tensor
 
 def Data_Rotation(Train_Images):
-    Dsl = []
-    for i in range(100):
+    Dsl = []; Dsl_Label = []
+    for i in range(56):
         # image = mpimg.imread(Train_Images[i])
         _4d_tensor = input_to_4d_tensor(Train_Images[i])
         R_0 = Rotation._apply_2d_rotation(_4d_tensor,0)
@@ -54,61 +57,70 @@ def Data_Rotation(Train_Images):
         R_180 = Rotation._apply_2d_rotation(_4d_tensor,180)
         R_270 = Rotation._apply_2d_rotation(_4d_tensor,270)
         Dsl.append(R_0)
+        Dsl_Label.append(0)
         Dsl.append(R_90)
+        Dsl_Label.append(90)
         Dsl.append(R_180)
+        Dsl_Label.append(180)
         Dsl.append(R_270)
-    return Dsl
+        Dsl_Label.append(270)
+    Dsl_Label = torch.Tensor(Dsl_Label)
+    return Dsl, Dsl_Label
 
 Train_Images, Train_Labels, Train_Cams = data_image_labels(train_dir, train_list)
-Dsl = Data_Rotation(Train_Images)  # Now for loop for DSL
-
-# input_batch = Dsl[0].unsqueeze(0)   #We don't need to do this as we already have a 4d_tensor.
-model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet152', pretrained=False)
-with torch.no_grad():
-    output = model(Dsl[0])
-probabilities = torch.nn.functional.softmax(output[0],dim=0)
-print(probabilities)
-print(max(probabilities))
-a = max(probabilities)
-print(list(probabilities).index(a))
+Dsl, Dsl_Label= Data_Rotation(Train_Images)
+Dsl_Label_28 = torch.reshape(Dsl_Label,(28,2*4))
 
 
+def save_pkl(D,path):
+    with open(path, 'wb') as f:
+        pickle.dump(D, f)
+    
+def read_pkl(path):
+    with open(path, 'rb') as f:
+        return pickle.load(f)
 
+path = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl/'
+for i in range(len(Dsl)):
+    D = {}
+    D['image'] = Dsl[i]
+    D['label'] = Dsl_Label[i]
+    tmp = path + f'{i}.pkl'
+    save_pkl(D,tmp)
 
+root_dir = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl/'
+from glob import glob
+class Veri(Dataset):
+    """dataset."""
 
+    def __init__(self, root_dir, transform=None):
+        """
+        Args:
+            csv_file (string): Path to the csv file with annotations.
+            root_dir (string): Directory with all the images.
+            transform (callable, optional): Optional transform to be applied
+                on a sample.
+        """
+        self.files = glob(f'{root_dir}*.pkl')
+        self.transform = transform
 
+    def __len__(self):
+        return len(self.files)  # partial data, return = 10
 
+    def __getitem__(self, idx):
+        file = self.files[idx]
+        D = read_pkl(file)
+        return {
+            'image': torch.tensor(D['image']),
+            'label': torch.tensor(D['label'])
+        }
 
+veri = Veri('/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl/')
+veri_loader = torch.utils.data.DataLoader(veri, batch_size=28, shuffle=True)
+print(len(veri_loader))
 
-'''#ResNet
-model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
-# or any of these variants
-# model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet34', pretrained=True)
-# model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet50', pretrained=True)
-# model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet101', pretrained=True)
-# model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet152', pretrained=True)
-model.eval()
-print(Train_Images[0])
-filename = Train_Images[0]
-filename = Dsl[0]
-# input_image = Image.open(filename)
-input_image = Dsl[0]
-print(input_image.shape)
-preprocess = transforms.Compose([
-    transforms.Resize(256),
-    transforms.CenterCrop(224),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-])
-input_tensor = preprocess(input_image)
-input_batch = input_tensor.unsqueeze(0) # create a mini-batch as expected by the model
-print(input_batch.shape)
-
-with torch.no_grad():
-    output = model(input_batch)
-# Tensor of shape 1000, with confidence scores over Imagenet's 1000 classes
-# print(output[0])
-# The output has unnormalized scores. To get probabilities, you can run a softmax on it.
-probabilities = torch.nn.functional.softmax(output[0], dim=0)
-print(probabilities)
-print(len(probabilities))
-'''
+for index, dic in enumerate(veri_loader):
+    print(index)
+    print(dic['image'].size())
+    print(dic['label'].size())
+    print(dic['image'].squeeze().size())
