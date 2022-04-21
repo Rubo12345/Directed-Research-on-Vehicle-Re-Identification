@@ -8,11 +8,12 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import os.path as osp
 from PIL import Image
-import sys
-sys.path.append('/home/rutu/WPI/Directed_Research/My_Approach_To_DR') 
+# import sys
+# sys.path.append('/home/rutu/WPI/Directed_Research/My_Approach_To_DR') 
 from Datasets import veri_train, Rotation
 from torch.utils.data import Dataset, DataLoader
 import pickle
+from glob import glob
 
 V = veri_train.VeRi()
 dataset_dir = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi'
@@ -49,7 +50,7 @@ def input_to_4d_tensor(I):
 
 def Data_Rotation(Train_Images):
     Dsl = []; Dsl_Label = []
-    for i in range(56):
+    for i in range(28):
         # image = mpimg.imread(Train_Images[i])
         _4d_tensor = input_to_4d_tensor(Train_Images[i])
         R_0 = Rotation._apply_2d_rotation(_4d_tensor,0)
@@ -69,8 +70,6 @@ def Data_Rotation(Train_Images):
 
 Train_Images, Train_Labels, Train_Cams = data_image_labels(train_dir, train_list)
 Dsl, Dsl_Label= Data_Rotation(Train_Images)
-Dsl_Label_28 = torch.reshape(Dsl_Label,(28,2*4))
-
 
 def save_pkl(D,path):
     with open(path, 'wb') as f:
@@ -89,7 +88,7 @@ for i in range(len(Dsl)):
     save_pkl(D,tmp)
 
 root_dir = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl/'
-from glob import glob
+
 class Veri(Dataset):
     """dataset."""
 
@@ -119,8 +118,29 @@ veri = Veri('/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl/')
 veri_loader = torch.utils.data.DataLoader(veri, batch_size=28, shuffle=True)
 print(len(veri_loader))
 
-for index, dic in enumerate(veri_loader):
-    print(index)
-    print(dic['image'].size())
-    print(dic['label'].size())
-    print(dic['image'].squeeze().size())
+def show_images(images, labels):
+    plt.figure(figsize=(8, 4))
+    for i, image in enumerate(images):
+        plt.subplot(1, 28, i + 1, xticks=[], yticks=[])
+        image = image.numpy().transpose((1, 2, 0))
+        mean = np.array([0.485, 0.456, 0.406])
+        std = np.array([0.229, 0.224, 0.225])
+        image = image * std + mean
+        image = np.clip(image, 0., 1.)
+        plt.imshow(image)
+        col = 'green'
+        # if preds[i] != labels[i]:
+        #     col = 'red'
+        # plt.xlabel(f'{class_names[int(labels[i].numpy())]}')
+        # plt.ylabel(f'{class_names[int(preds[i].numpy())]}', color=col)
+    plt.tight_layout()
+    plt.show()
+
+def show_plot(veri_loader):
+    for index, dic in enumerate(veri_loader):
+        print(dic['image'].squeeze().size())
+        image = dic['image'].squeeze()
+        label = dic['label'].squeeze()
+        show_images(image,label)
+
+
