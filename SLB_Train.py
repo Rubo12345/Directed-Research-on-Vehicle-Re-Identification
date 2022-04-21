@@ -4,16 +4,15 @@ from multiprocessing import BoundedSemaphore
 import numpy as np
 import torch
 import torchvision
+from torch.utils.data import Dataset, DataLoader
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import os.path as osp
 from PIL import Image
-# import sys
-# sys.path.append('/home/rutu/WPI/Directed_Research/My_Approach_To_DR') 
-from Datasets import veri_train, Rotation
-from torch.utils.data import Dataset, DataLoader
 import pickle
 from glob import glob
+from itertools import islice
+from Datasets import veri_train, Rotation
 
 V = veri_train.VeRi()
 dataset_dir = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi'
@@ -71,6 +70,16 @@ def Data_Rotation(Train_Images):
 Train_Images, Train_Labels, Train_Cams = data_image_labels(train_dir, train_list)
 Dsl, Dsl_Label= Data_Rotation(Train_Images)
 
+'''# initializing list
+# Dsl, Dsl_Label
+
+# initializing N
+N = 5
+Dsl_test = list(islice(reversed(Dsl), 0, N))
+Dsl_test.reverse()
+Dsl_Label_test = list(islice(reversed(Dsl_Label), 0, N))
+Dsl_Label_test.reverse()'''
+
 def save_pkl(D,path):
     with open(path, 'wb') as f:
         pickle.dump(D, f)
@@ -87,21 +96,22 @@ for i in range(len(Dsl)):
     tmp = path + f'{i}.pkl'
     save_pkl(D,tmp)
 
+'''path = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl_test/'
+for i in range(len(Dsl_test)):
+    D = {}
+    D['image'] = Dsl_test[i]
+    D['label'] = Dsl_Label_test[i]
+    tmp = path + f'{i}.pkl'
+    save_pkl(D,tmp)'''
+
 root_dir = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl/'
 
 class Veri(Dataset):
     """dataset."""
-
     def __init__(self, root_dir, transform=None):
-        """
-        Args:
-            csv_file (string): Path to the csv file with annotations.
-            root_dir (string): Directory with all the images.
-            transform (callable, optional): Optional transform to be applied
-                on a sample.
-        """
         self.files = glob(f'{root_dir}*.pkl')
         self.transform = transform
+        self.class_names = ['0','90','180','270']
 
     def __len__(self):
         return len(self.files)  # partial data, return = 10
@@ -111,14 +121,16 @@ class Veri(Dataset):
         D = read_pkl(file)
         return {
             'image': torch.tensor(D['image']),
-            'label': torch.tensor(D['label'])
+            'label': torch.tensor(D['label']),
+            'class_names': self.class_names
         }
 
 veri = Veri('/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl/')
 veri_loader = torch.utils.data.DataLoader(veri, batch_size=28, shuffle=True)
-print(len(veri_loader))
 
-def show_images(images, labels):
+class_names = veri.class_names
+
+def show_images(images, labels,preds):
     plt.figure(figsize=(8, 4))
     for i, image in enumerate(images):
         plt.subplot(1, 28, i + 1, xticks=[], yticks=[])
@@ -129,18 +141,36 @@ def show_images(images, labels):
         image = np.clip(image, 0., 1.)
         plt.imshow(image)
         col = 'green'
-        # if preds[i] != labels[i]:
-        #     col = 'red'
-        # plt.xlabel(f'{class_names[int(labels[i].numpy())]}')
-        # plt.ylabel(f'{class_names[int(preds[i].numpy())]}', color=col)
+        if preds[i] != labels[i]:
+            col = 'red'
+        plt.xlabel(f'{class_names[class_names.index(str(int(labels[i].numpy())))]}')
+        plt.ylabel(f'{class_names[class_names.index(str(int(preds[i].numpy())))]}', color=col)
     plt.tight_layout()
     plt.show()
 
 def show_plot(veri_loader):
     for index, dic in enumerate(veri_loader):
+        # print(dic['image'].squeeze().size())
+        images_batch = dic['image'].squeeze()
+        labels_batch = dic['label'].squeeze()
+        print(images_batch.shape)
+        print(labels_batch.shape)
+        show_images(images_batch,labels_batch,labels_batch)
+# show_plot(veri_loader)
+
+resnet18 = torchvision.models.resnet18(pretrained=True)
+resnet18.fc = torch.nn.Linear(in_features=512, out_features=4)
+loss_fn = torch.nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(resnet18.parameters(), lr=3e-5)
+
+def show_preds():
+    resnet18.eval()
+    for index, dic in enumerate(veri_loader):
         print(dic['image'].squeeze().size())
-        image = dic['image'].squeeze()
-        label = dic['label'].squeeze()
-        show_images(image,label)
+        images = dic['image'].squeeze()
+        labels = dic['label'].squeeze()
+        outputs = resnet18(images)
+        _, preds = torch.max(outputs, 1)
+        show_images(images, labels, preds)
 
-
+show_preds()
