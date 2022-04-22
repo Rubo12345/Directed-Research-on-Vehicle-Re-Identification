@@ -1,4 +1,5 @@
 from curses import def_shell_mode
+from dataclasses import dataclass
 from fileinput import filename
 from multiprocessing import BoundedSemaphore
 import numpy as np
@@ -18,7 +19,11 @@ V = veri_train.VeRi()
 dataset_dir = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi'
 train_dir = osp.join(dataset_dir, 'image_train')
 train_list = None   # I think data gets shuffled using this  # 37778
-# train_list = osp.join(dataset_dir, 'name_train.txt')       # 37746
+test_dir = osp.join(dataset_dir,'image_test')
+test_list = None
+Dsl_path = osp.join(dataset_dir,'Dsl')
+Dsl_test_path = osp.join(dataset_dir, 'Dsl_test')
+root_dir = osp.join(dataset_dir,'Dsl')
 
 def data_image_labels(train_dir, train_list):
         train_data = V.process_dir(train_dir,train_list, relabel=True)
@@ -47,9 +52,9 @@ def input_to_4d_tensor(I):
     Tensor = torch.reshape(Tensor,(1,3,Tensor.shape[1],Tensor.shape[2]))
     return Tensor
 
-def Data_Rotation(Train_Images):
+def Data_Rotation(Train_Images,Data_Size):
     Dsl = []; Dsl_Label = []
-    for i in range(28):
+    for i in range(Data_Size):
         # image = mpimg.imread(Train_Images[i])
         _4d_tensor = input_to_4d_tensor(Train_Images[i])
         R_0 = Rotation._apply_2d_rotation(_4d_tensor,0)
@@ -68,17 +73,11 @@ def Data_Rotation(Train_Images):
     return Dsl, Dsl_Label
 
 Train_Images, Train_Labels, Train_Cams = data_image_labels(train_dir, train_list)
-Dsl, Dsl_Label= Data_Rotation(Train_Images)
+Dsl, Dsl_Label= Data_Rotation(Train_Images,280)
+Test_Images, Test_Labels, Test_Cams = data_image_labels(test_dir,test_list)
+Dsl_test, Dsl_Label_test = Data_Rotation(Test_Images,20)
+print(len(Dsl_test))
 
-'''# initializing list
-# Dsl, Dsl_Label
-
-# initializing N
-N = 5
-Dsl_test = list(islice(reversed(Dsl), 0, N))
-Dsl_test.reverse()
-Dsl_Label_test = list(islice(reversed(Dsl_Label), 0, N))
-Dsl_Label_test.reverse()'''
 
 def save_pkl(D,path):
     with open(path, 'wb') as f:
@@ -88,23 +87,19 @@ def read_pkl(path):
     with open(path, 'rb') as f:
         return pickle.load(f)
 
-path = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl/'
 for i in range(len(Dsl)):
     D = {}
     D['image'] = Dsl[i]
     D['label'] = Dsl_Label[i]
-    tmp = path + f'{i}.pkl'
+    tmp = Dsl_path + f'{i}.pkl'
     save_pkl(D,tmp)
 
-'''path = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl_test/'
 for i in range(len(Dsl_test)):
-    D = {}
-    D['image'] = Dsl_test[i]
-    D['label'] = Dsl_Label_test[i]
-    tmp = path + f'{i}.pkl'
-    save_pkl(D,tmp)'''
-
-root_dir = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl/'
+    D_test = {}
+    D_test['image'] = Dsl_test[i]
+    D_test['label'] = Dsl_Label_test[i]
+    tmp = Dsl_test_path + f'{i}.pkl'
+    save_pkl(D,tmp)
 
 class Veri(Dataset):
     """dataset."""
@@ -125,11 +120,13 @@ class Veri(Dataset):
             'class_names': self.class_names
         }
 
-veri = Veri('/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl/')
+veri = Veri(Dsl_path)
 veri_loader = torch.utils.data.DataLoader(veri, batch_size=28, shuffle=True)
 
-class_names = veri.class_names
+veri_test = Veri(Dsl_test_path)
+veri_test_loader = torch.utils.data.DataLoader(veri_test, batch_size=28, shuffle=True)
 
+class_names = veri.class_names
 def show_images(images, labels,preds):
     plt.figure(figsize=(8, 4))
     for i, image in enumerate(images):
@@ -173,4 +170,56 @@ def show_preds():
         _, preds = torch.max(outputs, 1)
         show_images(images, labels, preds)
 
+def train(epochs):
+    print('Starting training..')
+    for e in range(0, epochs):
+        train_loss = 0.
+        val_loss = 0.
+
+        resnet18.train() # set model to training phase
+
+        for train_step, dic in enumerate(veri_loader):
+            optimizer.zero_grad()
+            train_images = dic['image'].squeeze()
+            train_labels = dic['label'].squeeze()
+            outputs = resnet18(train_images)
+            loss = loss_fn(outputs, train_labels)
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item()
+            if train_step % 20 == 0:
+                print('Evaluating at step', train_step)
+
+                accuracy = 0
+
+                resnet18.eval() # set model to eval phase
+
+                for val_step, D_test in enumerate(veri_test_loader):
+                    test_images = D_test['image'].squeeze()
+                    test_labels = D_test['label'].squeeze()
+                    outputs = resnet18(test_images)
+                    loss = loss_fn(outputs, test_labels)
+                    val_loss += loss.item()
+
+                    _, preds = torch.max(outputs, 1)
+                    accuracy += sum((preds == test_labels).numpy())
+
+                val_loss /= (val_step + 1)
+                accuracy = accuracy/len(veri_test)
+                print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f}')
+
+                show_preds()
+
+                resnet18.train()
+
+                if accuracy >= 0.95:
+                    print('Performance condition satisfied, stopping..')
+                    return
+
+        train_loss /= (train_step + 1)
+
+        print(f'Training Loss: {train_loss:.4f}')
+    print('Training complete..')
+
+train(epochs=1)
 show_preds()
