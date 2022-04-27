@@ -2,6 +2,11 @@ from numpy import identity
 import torch
 import torch.nn as nn
 
+def conv3x3(in_planes, out_planes, stride=1):
+    """3x3 convolution with padding"""
+    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
+                     padding=1, bias=False)
+
 class block(nn.Module):
     def __init__(self, in_channels, out_channels, identity_downsample = None, stride = 1):
         super(block,self).__init__()
@@ -14,9 +19,10 @@ class block(nn.Module):
         self.bn3 = nn.BatchNorm2d(out_channels*self.expansion)
         self.relu = nn.ReLU()
         self.identity_downsample = identity_downsample
+        self.stride = stride
 
     def forward(self,x):
-        identity = x
+        identitys = x
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -28,9 +34,10 @@ class block(nn.Module):
         # x = self.relu(x)
 
         if self.identity_downsample is not None:
-            identity = self.identity_downsample(identity)
+            identitys = self.identity_downsample(identitys)
 
-        x += identity
+        x += identitys
+        print(x)
         x = self.relu(x)
         return x
 
@@ -73,7 +80,7 @@ class ResNet(nn.Module):
         layers = []
 
         if stride != 1 or self.in_channels != out_channels * 4:
-            identity_downsample = nn.Sequential(nn.Conv2d(self.in_channels, out_channels*4, kernel_size = 1, stride = stride), nn.BatchNorm2d(out_channels*4))
+            identity_downsample = nn.Sequential(nn.Conv2d(self.in_channels, out_channels*4, kernel_size = 1, stride = stride, bias = False), nn.BatchNorm2d(out_channels*4))
         
         layers.append(block(self.in_channels, out_channels, identity_downsample, stride))
         self.in_channels = out_channels*4
@@ -82,6 +89,9 @@ class ResNet(nn.Module):
             layers.append(block(self.in_channels, out_channels))  #256 back to 64, output = 64*4 = 256 again
         
         return nn.Sequential(*layers)
+
+def ResNet18(img_channels = 3, num_classes = 1000):
+    return ResNet(block, [2,2,2,2], img_channels, num_classes)
 
 def ResNet50(img_channels = 3, num_classes = 1000):
     return ResNet(block, [3,4,6,3], img_channels, num_classes)
@@ -94,7 +104,7 @@ def ResNet152(img_channels = 3, num_classes = 1000):
 
 def test():
     net = ResNet50()
-    x = torch.randn(2,3,224,224)
+    x = torch.randn(1,3,224,224)
     # y = net(x).to('cuda')
     y = net(x)
     print(y.shape)
