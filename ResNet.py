@@ -31,8 +31,7 @@ class block(nn.Module):
         x = self.relu(x)
         x = self.conv3(x)
         x = self.bn3(x)
-        # x = self.relu(x)
-
+    
         if self.identity_downsample is not None:
             identitys = self.identity_downsample(identitys)
 
@@ -105,7 +104,7 @@ def ResNet152(img_channels = 3, num_classes = 1000):
 def test():
     net = ResNet50()
     x = torch.randn(1,3,224,224)
-    # y = net(x).to('cuda')
+    # y = ResNet50(x).to('cuda')
     y = net(x)
     print(y.shape)
 
