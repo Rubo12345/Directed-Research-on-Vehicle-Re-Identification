@@ -17,12 +17,10 @@ model_urls = {
     'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
 }
 
-
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
                      padding=1, bias=False)
-
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -54,7 +52,6 @@ class BasicBlock(nn.Module):
         out = self.relu(out)
 
         return out
-
 
 class Bottleneck(nn.Module):
     expansion = 4
@@ -93,7 +90,6 @@ class Bottleneck(nn.Module):
         out = self.relu(out)
 
         return out
-
 
 class ResNet(nn.Module):
     """Residual network.
@@ -227,7 +223,6 @@ class ResNet(nn.Module):
         else:
             raise KeyError("Unsupported loss: {}".format(self.loss))
 
-
 def init_pretrained_weights(model, model_url):
     """Initializes model with pretrained weights.
 
@@ -240,7 +235,6 @@ def init_pretrained_weights(model, model_url):
     model.load_state_dict(model_dict)
     print('Initialized model with pretrained weights from {}'.format(model_url))
 
-
 """
 Residual network configurations:
 --
@@ -250,7 +244,6 @@ resnet50: block=Bottleneck, layers=[3, 4, 6, 3]
 resnet101: block=Bottleneck, layers=[3, 4, 23, 3]
 resnet152: block=Bottleneck, layers=[3, 8, 36, 3]
 """
-
 
 def resnet18(num_classes, loss='softmax', pretrained=True, **kwargs):
     model = ResNet(
@@ -267,7 +260,6 @@ def resnet18(num_classes, loss='softmax', pretrained=True, **kwargs):
         init_pretrained_weights(model, model_urls['resnet18'])
     return model
 
-
 def resnet34(num_classes, loss='softmax', pretrained=True, **kwargs):
     model = ResNet(
         num_classes=num_classes,
@@ -282,7 +274,6 @@ def resnet34(num_classes, loss='softmax', pretrained=True, **kwargs):
     if pretrained:
         init_pretrained_weights(model, model_urls['resnet34'])
     return model
-
 
 def resnet50(num_classes, loss='softmax', pretrained=True, **kwargs):
     model = ResNet(
@@ -299,7 +290,6 @@ def resnet50(num_classes, loss='softmax', pretrained=True, **kwargs):
         init_pretrained_weights(model, model_urls['resnet50'])
     return model
 
-
 def resnet101(num_classes, loss='softmax', pretrained=True, **kwargs):
     model = ResNet(
         num_classes=num_classes,
@@ -314,7 +304,6 @@ def resnet101(num_classes, loss='softmax', pretrained=True, **kwargs):
     if pretrained:
         init_pretrained_weights(model, model_urls['resnet101'])
     return model
-
 
 def resnet152(num_classes, loss='softmax', pretrained=True, **kwargs):
     model = ResNet(
@@ -336,7 +325,6 @@ def resnet152(num_classes, loss='softmax', pretrained=True, **kwargs):
 resnet + fc
 """
 
-
 def resnet50_fc512(num_classes, loss='softmax', pretrained=True, **kwargs):
     model = ResNet(
         num_classes=num_classes,
@@ -355,11 +343,11 @@ def resnet50_fc512(num_classes, loss='softmax', pretrained=True, **kwargs):
     return model
 
 def test():
-    net = resnet18(4)
+    net = resnet152(4)
     x = torch.randn(1,3,224,224)
-    # y = net(x).to('cuda')
-    y = net(x)
+    y = net(x).to('cuda')
+    # y = net(x)
     print(y.shape)
-    # print(y)
+    print(y)
 
 test()
