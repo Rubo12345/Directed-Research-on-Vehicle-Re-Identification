@@ -17,6 +17,7 @@ from Datasets import veri_train, Rotation
 
 class SLB:
     def __init__(self):
+        
         self.V = veri_train.VeRi()
         self.dataset_dir = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi'
         self.train_dir = osp.join(self.dataset_dir, 'image_train')
@@ -26,6 +27,12 @@ class SLB:
         self.Dsl_path = osp.join(self.dataset_dir,'Dsl')
         self.Dsl_test_path = osp.join(self.dataset_dir, 'Dsl_test')
         self.root_dir = osp.join(self.dataset_dir,'Dsl')
+        
+        self.veri = Veri(self.Dsl_path)
+        self.veri_loader = torch.utils.data.DataLoader(self.veri, batch_size=28, shuffle=True)
+        self.veri_test = Veri(self.Dsl_test_path)
+        self.veri_test_loader = torch.utils.data.DataLoader(self.veri_test, batch_size=28, shuffle=True)
+
 
     def data_image_labels(self,train_dir, train_list):
         train_data = self.V.process_dir(train_dir,train_list, relabel=True)
@@ -108,6 +115,7 @@ class SLB:
     veri_test_loader = torch.utils.data.DataLoader(veri_test, batch_size=28, shuffle=True)
 
     class_names = veri.class_names
+    
     def show_images(images, labels,preds):
         plt.figure(figsize=(8, 4))
         for i, image in enumerate(images):
@@ -216,3 +224,20 @@ class Veri(Dataset):
             'label': torch.tensor(D['label'], dtype=torch.long),
             'class_names': self.class_names
         }
+
+    def save_pkl(D,path):
+        with open(path, 'wb') as f:
+            pickle.dump(D, f)
+
+    def read_pkl(path):
+        with open(path, 'rb') as f:
+            return pickle.load(f)
+    
+    def store_data(Dsl,Dsl_Label,Dsl_path): # Can use this for test data also
+        for i in range(len(Dsl)):
+            D = {}
+            D['image'] = Dsl[i]
+            D['label'] = Dsl_Label[i]
+            tmp = Dsl_path + f'{i}.pkl'
+            save_pkl(D,tmp)
+
