@@ -73,11 +73,9 @@ def Data_Rotation(Train_Images,Data_Size):
     return Dsl, Dsl_Label
 
 Train_Images, Train_Labels, Train_Cams = data_image_labels(train_dir, train_list)
-Dsl, Dsl_Label= Data_Rotation(Train_Images,2000)
+Dsl, Dsl_Label= Data_Rotation(Train_Images,1000)
 Test_Images, Test_Labels, Test_Cams = data_image_labels(test_dir,test_list)
 Dsl_test, Dsl_Label_test = Data_Rotation(Test_Images,28)
-# print(len(Dsl_test))
-# print(Train_Images[0])
 
 def save_pkl(D,path):
     with open(path, 'wb') as f:
