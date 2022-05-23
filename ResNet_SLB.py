@@ -120,10 +120,14 @@ class ResNet(nn.Module):
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.layer1 = self._make_layer(block, 64, layers[0])
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=last_stride)
+        self.layer1 = self._make_layer(block, 64, layers[0])              # Conv_2x
+        self.layer2 = self._make_layer(block, 128, layers[1], stride=2)   # Conv_3x
+        self.layer3 = self._make_layer(block, 256, layers[2], stride=1)   # Conv_4x
+        self.layer4 = self._make_layer(block, 512, layers[3], stride=1)   # Conv_5x
+
+        ''' Basic Block Layers for SLB'''
+        self.layer5 = self._make_layer(block, 512, layers[4], stride = 2) # BasicBlock
+        self.layer6 = self._make_layer(block, 512, layers[5], stride = 2) # BasicBlock
 
         self.global_avgpool = nn.AdaptiveAvgPool2d(1)
         self.fc = self._construct_fc_layer(fc_dims, 512 * block.expansion, dropout_p)
@@ -194,13 +198,25 @@ class ResNet(nn.Module):
 
     def featuremaps(self, x):
         x = self.conv1(x)
+        # print(x.shape)
         x = self.bn1(x)
+        # print(x.shape)
         x = self.relu(x)
+        print(x.shape)
         x = self.maxpool(x)
+        print(x.shape)
         x = self.layer1(x)
+        print(x.shape)
         x = self.layer2(x)
+        print(x.shape)
         x = self.layer3(x)
+        print(x.shape)
         x = self.layer4(x)
+        print(x.shape)
+        x = self.layer5(x)
+        print(x.shape)
+        x = self.layer6(x)
+        print(x.shape)
         return x
 
     def forward(self, x):
@@ -251,6 +267,21 @@ def resnet18(num_classes, loss='softmax', pretrained=True, **kwargs):
         loss=loss,
         block=BasicBlock,
         layers=[2, 2, 2, 2],
+        last_stride=2,
+        fc_dims=None,
+        dropout_p=None,
+        **kwargs
+    )
+    if pretrained:
+        init_pretrained_weights(model, model_urls['resnet18'])
+    return model
+
+def resnet18_SLB(num_classes, loss='softmax', pretrained=True, **kwargs):
+    model = ResNet(
+        num_classes=num_classes,
+        loss=loss,
+        block=BasicBlock,
+        layers=[2, 2, 2, 2, 2, 2],  #according to the paper
         last_stride=2,
         fc_dims=None,
         dropout_p=None,
@@ -320,7 +351,6 @@ def resnet152(num_classes, loss='softmax', pretrained=True, **kwargs):
         init_pretrained_weights(model, model_urls['resnet152'])
     return model
 
-
 """
 resnet + fc
 """
@@ -338,16 +368,13 @@ def resnet50_fc512(num_classes, loss='softmax', pretrained=True, **kwargs):
     )
     if pretrained:
         init_pretrained_weights(model, model_urls['resnet50'])
-
-
     return model
 
 def test():
-    net = resnet152(4)
+    net = resnet18_SLB(4)
     x = torch.randn(1,3,224,224)
     y = net(x).to('cuda')
     # y = net(x)
     print(y.shape)
     print(y)
-
 test()
