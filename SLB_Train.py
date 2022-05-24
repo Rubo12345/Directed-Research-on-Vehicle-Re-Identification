@@ -1,3 +1,9 @@
+
+'''
+    Self Supervised Learning
+    Data -> Data Augumentation -> ResNet18 Complete -> loss -> back prop, optim 
+'''
+
 from curses import def_shell_mode
 from dataclasses import dataclass
 from fileinput import filename
@@ -14,6 +20,7 @@ import pickle
 from glob import glob
 from itertools import islice
 from Datasets import veri_train, Rotation
+import ResNet_SLB
 
 V = veri_train.VeRi()
 dataset_dir = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi'
@@ -73,9 +80,9 @@ def Data_Rotation(Train_Images,Data_Size):
     return Dsl, Dsl_Label
 
 Train_Images, Train_Labels, Train_Cams = data_image_labels(train_dir, train_list)
-Dsl, Dsl_Label= Data_Rotation(Train_Images,1000)
+Dsl, Dsl_Label= Data_Rotation(Train_Images,7)
 Test_Images, Test_Labels, Test_Cams = data_image_labels(test_dir,test_list)
-Dsl_test, Dsl_Label_test = Data_Rotation(Test_Images,28)
+Dsl_test, Dsl_Label_test = Data_Rotation(Test_Images,7)
 
 def save_pkl(D,path):
     with open(path, 'wb') as f:
@@ -153,8 +160,10 @@ def show_plot(veri_loader):
         show_images(images_batch,labels_batch,labels_batch)
 # show_plot(veri_loader)
 
-resnet18 = torchvision.models.resnet18(pretrained=True)
-resnet18.fc = torch.nn.Linear(in_features=512, out_features=4)
+resnet18 = ResNet_SLB.resnet18_SLB(4)
+
+# resnet18 = torchvision.models.resnet18(pretrained=False)
+# resnet18.fc = torch.nn.Linear(in_features=512, out_features=4)
 loss_fn = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(resnet18.parameters(), lr=3e-5)
 
@@ -168,49 +177,31 @@ def show_preds():
         _, preds = torch.max(outputs, 1)
         show_images(images, labels, preds)
 
-def train(epochs):
-    print('Starting training..')
+def train_slb(epochs):
+    print('Start Training')
     for e in range(0, epochs):
-        train_loss = 0.
-        val_loss = 0.
-        resnet18.train() # set model to training phase
+        train_loss = 0; val_loss = 0;accuracy = 0
         for train_step, dic in enumerate(veri_loader):
-            optimizer.zero_grad()
             train_images = dic['image'].squeeze()
-            train_labels = dic['label'].squeeze() 
-            outputs = resnet18(train_images)
-            loss = loss_fn(outputs, train_labels)
-            loss.backward()
-            optimizer.step()
-            train_loss += loss.item()
+            train_labels = dic['label'].squeeze()
+            outputs = resnet18(train_images)      # Fsl
+            # print(outputs)
+            _, preds = torch.max(outputs, 1)      # Prediction
+            # print(preds)
+            loss = loss_fn(outputs, train_labels) # Loss
             
-            '''# if train_step % 20 == 0:
-            #     print('Evaluating at step', train_step)
-            #     accuracy = 0 
-            #     resnet18.eval() # set model to eval phase
-            #     for val_step, D_test in enumerate(veri_test_loader):
-            #         test_images = D_test['image'].squeeze()
-            #         test_labels = D_test['label'].squeeze()
+            loss.backward()                       # Back Prop
 
-            #         outputs = resnet18(test_images)
-            #         loss = loss_fn(outputs, test_labels)
-            #         val_loss += loss.item()
+            optimizer.step()                      # Adams Optimizer
 
-            #         _, preds = torch.max(outputs, 1)
-            #         accuracy += sum((preds == test_labels).numpy())
+            train_loss += loss.item()             # Train_loss Summation
+            # print(loss)
+            accuracy += sum((preds == train_labels).numpy())   #Accuracy Summation
 
-            #     val_loss /= (val_step + 1)
-            #     accuracy = accuracy/len(veri_test)
-            #     print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f}')
-            #     # show_preds()
-            #     resnet18.train()
-            #     # if accuracy >= 0.95:
-            #     #     print('Performance condition satisfied, stopping..')
-            #     #     return
-        # train_loss /= (train_step +'' 1)'''
+        train_loss /= (train_step + 1)            # Actual Training loss
 
-        print(f'Training Loss: {train_loss:.4f}')
-    print('Training complete..')
+        accuracy = accuracy/len(veri_test)        # Actual Accuracy 
+        print(accuracy)
 
-train(epochs=5)
+train_slb(epochs=1)
 # show_preds()
