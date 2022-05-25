@@ -22,6 +22,9 @@ from itertools import islice
 from Datasets import veri_train, Rotation
 import ResNet_SLB
 
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+# print(device)
+
 V = veri_train.VeRi()
 dataset_dir = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi'
 train_dir = osp.join(dataset_dir, 'image_train')
@@ -29,7 +32,9 @@ train_list = None   # I think data gets shuffled using this  # 37778
 test_dir = osp.join(dataset_dir,'image_test')
 test_list = None
 Dsl_path = osp.join(dataset_dir,'Dsl')
+Dsl_path = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl'
 Dsl_test_path = osp.join(dataset_dir, 'Dsl_test')
+Dsl_test_path = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl_test'
 root_dir = osp.join(dataset_dir,'Dsl')
 
 def data_image_labels(train_dir, train_list):
@@ -80,9 +85,9 @@ def Data_Rotation(Train_Images,Data_Size):
     return Dsl, Dsl_Label
 
 Train_Images, Train_Labels, Train_Cams = data_image_labels(train_dir, train_list)
-Dsl, Dsl_Label= Data_Rotation(Train_Images,7)
+Dsl, Dsl_Label= Data_Rotation(Train_Images,1000)
 Test_Images, Test_Labels, Test_Cams = data_image_labels(test_dir,test_list)
-Dsl_test, Dsl_Label_test = Data_Rotation(Test_Images,7)
+Dsl_test, Dsl_Label_test = Data_Rotation(Test_Images,100)
 
 def save_pkl(D,path):
     with open(path, 'wb') as f:
@@ -125,13 +130,17 @@ class Veri(Dataset):
             'class_names': self.class_names
         }
 
-veri = Veri(Dsl_path)
-veri_loader = torch.utils.data.DataLoader(veri, batch_size=28, shuffle=True)
+def data_loader(path,batch_size):
+    veri = Veri(path)
+    loader = torch.utils.data.DataLoader(veri, batch_size, shuffle=True)
+    return loader,veri 
 
-veri_test = Veri(Dsl_test_path)
-veri_test_loader = torch.utils.data.DataLoader(veri_test, batch_size=28, shuffle=True)
-
+veri_loader, veri = data_loader(Dsl_path, 28)
+veri_test_loader, veri_test = data_loader(Dsl_test_path,28)
 class_names = veri.class_names
+
+# print(len(veri_loader))
+
 def show_images(images, labels,preds):
     plt.figure(figsize=(8, 4))
     for i, image in enumerate(images):
@@ -158,12 +167,8 @@ def show_plot(veri_loader):
         print(images_batch.shape)
         print(labels_batch.shape)
         show_images(images_batch,labels_batch,labels_batch)
-# show_plot(veri_loader)
 
-resnet18 = ResNet_SLB.resnet18_SLB(4)
-
-# resnet18 = torchvision.models.resnet18(pretrained=False)
-# resnet18.fc = torch.nn.Linear(in_features=512, out_features=4)
+resnet18 = ResNet_SLB.resnet18_SLB(4).to(device)
 loss_fn = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(resnet18.parameters(), lr=3e-5)
 
@@ -178,16 +183,24 @@ def show_preds():
         show_images(images, labels, preds)
 
 def train_slb(epochs):
+    
     print('Start Training')
+    
     for e in range(0, epochs):
+        
         train_loss = 0; val_loss = 0;accuracy = 0
+        
         for train_step, dic in enumerate(veri_loader):
-            train_images = dic['image'].squeeze()
-            train_labels = dic['label'].squeeze()
+        
+            train_images = dic['image'].squeeze().to(device)
+            train_labels = dic['label'].squeeze().to(device)
+         
+            optimizer.zero_grad()                 # Zero the parameter gradient
+
             outputs = resnet18(train_images)      # Fsl
-            # print(outputs)
+
             _, preds = torch.max(outputs, 1)      # Prediction
-            # print(preds)
+   
             loss = loss_fn(outputs, train_labels) # Loss
             
             loss.backward()                       # Back Prop
@@ -195,13 +208,18 @@ def train_slb(epochs):
             optimizer.step()                      # Adams Optimizer
 
             train_loss += loss.item()             # Train_loss Summation
-            # print(loss)
-            accuracy += sum((preds == train_labels).numpy())   #Accuracy Summation
+           
+            # accuracy += sum((preds.cpu() == train_labels.cpu()).numpy())   #Accuracy Summation
 
-        train_loss /= (train_step + 1)            # Actual Training loss
+            if train_step % 20 == 0:              # print every 20 train_steps
+                print(f'[{e + 1}, {train_step + 1}] loss: {train_loss / 20:.3f}')
+                train_loss = 0.0
+        
+        # train_loss /= (train_step + 1)          # Actual Training loss
+        # accuracy /= len(veri_test)              # Actual Accuracy 
+        
+    print("Training Finished")
 
-        accuracy = accuracy/len(veri_test)        # Actual Accuracy 
-        print(accuracy)
+train_slb(epochs=5)
 
-train_slb(epochs=1)
 # show_preds()
