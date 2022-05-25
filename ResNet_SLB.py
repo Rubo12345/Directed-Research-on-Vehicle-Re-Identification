@@ -9,6 +9,7 @@ from torch.nn import functional as F
 import torchvision
 import torch.utils.model_zoo as model_zoo
 
+
 model_urls = {
     'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
     'resnet34': 'https://download.pytorch.org/models/resnet34-333f7ec4.pth',
@@ -125,10 +126,6 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 256, layers[2], stride=1)   # Conv_4x
         self.layer4 = self._make_layer(block, 512, layers[3], stride=1)   # Conv_5x
 
-        ''' Basic Block Layers for SLB'''
-        self.layer5 = self._make_layer(block, 512, layers[4], stride = 2) # BasicBlock
-        self.layer6 = self._make_layer(block, 512, layers[5], stride = 2) # BasicBlock
-
         self.global_avgpool = nn.AdaptiveAvgPool2d(1)
         self.fc = self._construct_fc_layer(fc_dims, 512 * block.expansion, dropout_p)
         self.classifier = nn.Linear(self.feature_dim, num_classes)
@@ -202,21 +199,159 @@ class ResNet(nn.Module):
         x = self.bn1(x)
         # print(x.shape)
         x = self.relu(x)
-        print(x.shape)
+        # print(x.shape)
         x = self.maxpool(x)
-        print(x.shape)
+        # print(x.shape)
         x = self.layer1(x)
-        print(x.shape)
+        # print(x.shape)
         x = self.layer2(x)
-        print(x.shape)
+        # print(x.shape)
         x = self.layer3(x)
-        print(x.shape)
+        # print(x.shape)
         x = self.layer4(x)
-        print(x.shape)
+        # print(x.shape)
+        return x
+
+    def forward(self, x):
+        f = self.featuremaps(x)
+        v = self.global_avgpool(f)
+        v = v.view(v.size(0), -1)
+
+        if self.fc is not None:
+            v = self.fc(v)
+
+        if not self.training:
+            return v
+
+        y = self.classifier(v)
+
+        if self.loss == 'softmax':
+            return y
+        elif self.loss == 'triplet':
+            return y, v
+        else:
+            raise KeyError("Unsupported loss: {}".format(self.loss))
+
+class ResNet_SLB(nn.Module):
+    """Residual network.
+
+    Reference:
+        He et al. Deep Residual Learning for Image Recognition. CVPR 2016.
+    Public keys:
+        - ``resnet18``: ResNet18.
+        - ``resnet34``: ResNet34.
+        - ``resnet50``: ResNet50.
+        - ``resnet101``: ResNet101.
+        - ``resnet152``: ResNet152.
+        - ``resnet50_fc512``: ResNet50 + FC.
+    """
+
+    def __init__(self, num_classes, loss, block, layers,
+                 last_stride=2,
+                 fc_dims=None,
+                 dropout_p=None,
+                 **kwargs):
+        self.inplanes = 64
+        super(ResNet_SLB, self).__init__()
+        self.loss = loss
+        self.feature_dim = 512 * block.expansion
+
+        # backbone network
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        self.bn1 = nn.BatchNorm2d(64)
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.layer1 = self._make_layer(block, 64, layers[0])              # Conv_2x
+        self.layer2 = self._make_layer(block, 128, layers[1], stride=2)   # Conv_3x
+        self.layer3 = self._make_layer(block, 256, layers[2], stride=1)   # Conv_4x
+        self.layer4 = self._make_layer(block, 512, layers[3], stride=1)   # Conv_5x
+
+        ''' Basic Block Layers for SLB'''
+        self.layer5 = self._make_layer(block, 512, layers[4], stride = 2) # BasicBlock
+        self.layer6 = self._make_layer(block, 512, layers[5], stride = 2) # BasicBlock
+        self.global_avgpool = nn.AdaptiveAvgPool2d(1)
+        self.fc = self._construct_fc_layer(fc_dims, 512 * block.expansion, dropout_p)
+        self.classifier = nn.Linear(self.feature_dim, num_classes)
+        self._init_params()
+
+    def _make_layer(self, block, planes, blocks, stride=1):
+        downsample = None
+        if stride != 1 or self.inplanes != planes * block.expansion:
+            downsample = nn.Sequential(
+                nn.Conv2d(self.inplanes, planes * block.expansion,
+                          kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(planes * block.expansion),
+            )
+        layers = []
+        layers.append(block(self.inplanes, planes, stride, downsample))
+        self.inplanes = planes * block.expansion
+        for i in range(1, blocks):
+            layers.append(block(self.inplanes, planes))
+        return nn.Sequential(*layers)
+
+    def _construct_fc_layer(self, fc_dims, input_dim, dropout_p=None):
+        """Constructs fully connected layer
+        Args:
+            fc_dims (list or tuple): dimensions of fc layers, if None, no fc layers are constructed
+            input_dim (int): input dimension
+            dropout_p (float): dropout probability, if None, dropout is unused
+        """
+        if fc_dims is None:
+            self.feature_dim = input_dim
+            return None
+
+        assert isinstance(fc_dims, (list, tuple)), 'fc_dims must be either list or tuple, but got {}'.format(
+            type(fc_dims))
+
+        layers = []
+        for dim in fc_dims:
+            layers.append(nn.Linear(input_dim, dim))
+            layers.append(nn.BatchNorm1d(dim))
+            layers.append(nn.ReLU(inplace=True))
+            if dropout_p is not None:
+                layers.append(nn.Dropout(p=dropout_p))
+            input_dim = dim
+        self.feature_dim = fc_dims[-1]
+        return nn.Sequential(*layers)
+
+    def _init_params(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm1d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, 0, 0.01)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+
+    def featuremaps(self, x):
+        x = self.conv1(x)
+        # print(x.shape)
+        x = self.bn1(x)
+        # print(x.shape)
+        x = self.relu(x)
+        # print(x.shape)
+        x = self.maxpool(x)
+        # print(x.shape)
+        x = self.layer1(x)
+        # print(x.shape)
+        x = self.layer2(x)
+        # print(x.shape)
+        x = self.layer3(x)
+        # print(x.shape)
+        x = self.layer4(x)
+        # print(x.shape)
         x = self.layer5(x)
-        print(x.shape)
+        # print(x.shape)
         x = self.layer6(x)
-        print(x.shape)
+        # print(x.shape)
         return x
 
     def forward(self, x):
@@ -277,7 +412,7 @@ def resnet18(num_classes, loss='softmax', pretrained=True, **kwargs):
     return model
 
 def resnet18_SLB(num_classes, loss='softmax', pretrained=True, **kwargs):
-    model = ResNet(
+    model = ResNet_SLB(
         num_classes=num_classes,
         loss=loss,
         block=BasicBlock,
@@ -371,10 +506,10 @@ def resnet50_fc512(num_classes, loss='softmax', pretrained=True, **kwargs):
     return model
 
 def test():
-    net = resnet18_SLB(4)
+    net = resnet50(4)
     x = torch.randn(1,3,224,224)
+    print(x.shape)
     y = net(x).to('cuda')
-    # y = net(x)
     print(y.shape)
     print(y)
-test()
+# test()
