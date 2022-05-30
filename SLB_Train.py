@@ -1,7 +1,7 @@
 
 '''
     Self Supervised Learning
-    Data -> Data Augumentation -> ResNet18 Complete -> loss -> back prop, optim 
+    Data -> Data Augumentation -> ResNet18 + 2 Basic Blocks, Complete -> loss -> back prop, optim 
 '''
 
 from curses import def_shell_mode
@@ -32,9 +32,9 @@ train_list = None   # I think data gets shuffled using this  # 37778
 test_dir = osp.join(dataset_dir,'image_test')
 test_list = None
 Dsl_path = osp.join(dataset_dir,'Dsl')
-Dsl_path = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl'
+Dsl_path = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl/'
 Dsl_test_path = osp.join(dataset_dir, 'Dsl_test')
-Dsl_test_path = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl_test'
+Dsl_test_path = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl_test/'
 root_dir = osp.join(dataset_dir,'Dsl')
 
 def data_image_labels(train_dir, train_list):
@@ -85,9 +85,9 @@ def Data_Rotation(Train_Images,Data_Size):
     return Dsl, Dsl_Label
 
 Train_Images, Train_Labels, Train_Cams = data_image_labels(train_dir, train_list)
-Dsl, Dsl_Label= Data_Rotation(Train_Images,1000)
+Dsl, Dsl_Label= Data_Rotation(Train_Images,100)
 Test_Images, Test_Labels, Test_Cams = data_image_labels(test_dir,test_list)
-Dsl_test, Dsl_Label_test = Data_Rotation(Test_Images,100)
+Dsl_test, Dsl_Label_test = Data_Rotation(Test_Images,28)
 
 def save_pkl(D,path):
     with open(path, 'wb') as f:
@@ -139,8 +139,6 @@ veri_loader, veri = data_loader(Dsl_path, 28)
 veri_test_loader, veri_test = data_loader(Dsl_test_path,28)
 class_names = veri.class_names
 
-# print(len(veri_loader))
-
 def show_images(images, labels,preds):
     plt.figure(figsize=(8, 4))
     for i, image in enumerate(images):
@@ -191,7 +189,7 @@ def train_slb(epochs):
         train_loss = 0; val_loss = 0;accuracy = 0
         
         for train_step, dic in enumerate(veri_loader):
-        
+
             train_images = dic['image'].squeeze().to(device)
             train_labels = dic['label'].squeeze().to(device)
          
@@ -199,8 +197,6 @@ def train_slb(epochs):
 
             outputs = resnet18(train_images)      # Fsl
 
-            _, preds = torch.max(outputs, 1)      # Prediction
-   
             loss = loss_fn(outputs, train_labels) # Loss
             
             loss.backward()                       # Back Prop
@@ -208,18 +204,30 @@ def train_slb(epochs):
             optimizer.step()                      # Adams Optimizer
 
             train_loss += loss.item()             # Train_loss Summation
-           
-            # accuracy += sum((preds.cpu() == train_labels.cpu()).numpy())   #Accuracy Summation
 
             if train_step % 20 == 0:              # print every 20 train_steps
+                
                 print(f'[{e + 1}, {train_step + 1}] loss: {train_loss / 20:.3f}')
-                train_loss = 0.0
-        
-        # train_loss /= (train_step + 1)          # Actual Training loss
-        # accuracy /= len(veri_test)              # Actual Accuracy 
-        
-    print("Training Finished")
+                
+                train_loss = 0.0 ;correct = 0.0; n_samples = 0.0
+                
+                # with torch.no_grad():
+                
+                for eval_step, test_dic in enumerate(veri_test_loader):
+            
+                    test_images = test_dic['image'].squeeze().to(device)
+                    test_labels = test_dic['label'].squeeze().to(device)
+            
+                    test_outputs = resnet18(test_images)
+            
+                    _, pred = torch.max(test_outputs,1)
 
+                    n_samples += test_labels.size(0)
+
+                    correct += (pred == test_labels).sum().item()
+                        
+                print(f'Accuracy of the network on the 280 test images: {100 * correct // n_samples} %')
+    print("Training Finished")
 train_slb(epochs=5)
 
 # show_preds()
