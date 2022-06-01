@@ -23,19 +23,20 @@ from Datasets import veri_train, Rotation
 import ResNet_SLB
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-# print(device)
 
-V = veri_train.VeRi()
-dataset_dir = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi'
-train_dir = osp.join(dataset_dir, 'image_train')
-train_list = None   # I think data gets shuffled using this  # 37778
-test_dir = osp.join(dataset_dir,'image_test')
-test_list = None
-Dsl_path = osp.join(dataset_dir,'Dsl')
-Dsl_path = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl/'
-Dsl_test_path = osp.join(dataset_dir, 'Dsl_test')
-Dsl_test_path = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl_test/'
-root_dir = osp.join(dataset_dir,'Dsl')
+def directory_paths():
+    V = veri_train.VeRi()
+    dataset_dir = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi'
+    train_dir = osp.join(dataset_dir, 'image_train')
+    train_list = None   # I think data gets shuffled using this  # 37778
+    test_dir = osp.join(dataset_dir,'image_test')
+    test_list = None
+    Dsl_path = osp.join(dataset_dir,'Dsl/')
+    Dsl_test_path = osp.join(dataset_dir, 'Dsl_test/')
+    root_dir = osp.join(dataset_dir,'Dsl')
+    return dataset_dir, train_dir, train_list, test_dir, train_list, test_list, Dsl_path, Dsl_test_path, root_dir
+
+dataset_dir, train_dir, train_list, test_dir, train_list, test_list, Dsl_path, Dsl_test_path, root_dir = directory_paths()
 
 def data_image_labels(train_dir, train_list):
         train_data = V.process_dir(train_dir,train_list, relabel=True)
@@ -84,10 +85,14 @@ def Data_Rotation(Train_Images,Data_Size):
     Dsl_Label = torch.Tensor(Dsl_Label)
     return Dsl, Dsl_Label
 
-Train_Images, Train_Labels, Train_Cams = data_image_labels(train_dir, train_list)
-Dsl, Dsl_Label= Data_Rotation(Train_Images,100)
-Test_Images, Test_Labels, Test_Cams = data_image_labels(test_dir,test_list)
-Dsl_test, Dsl_Label_test = Data_Rotation(Test_Images,28)
+def get_data():
+    Train_Images, Train_Labels, Train_Cams = data_image_labels(train_dir, train_list)
+    Dsl, Dsl_Label= Data_Rotation(Train_Images,2000)
+    Test_Images, Test_Labels, Test_Cams = data_image_labels(test_dir,test_list)
+    Dsl_test, Dsl_Label_test = Data_Rotation(Test_Images,28)
+    return Dsl, Dsl_Label, Dsl_test, Dsl_Label_test
+
+Dsl, Dsl_Label, Dsl_test, Dsl_Label_test = get_data()
 
 def save_pkl(D,path):
     with open(path, 'wb') as f:
@@ -166,9 +171,13 @@ def show_plot(veri_loader):
         print(labels_batch.shape)
         show_images(images_batch,labels_batch,labels_batch)
 
-resnet18 = ResNet_SLB.resnet18_SLB(4).to(device)
-loss_fn = torch.nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(resnet18.parameters(), lr=3e-5)
+def model():
+    resnet18 = ResNet_SLB.resnet18_SLB(4).to(device)
+    loss_fn = torch.nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(resnet18.parameters(), lr=3e-5)
+    return resnet18 , loss_fn, optimizer
+
+resnet18, loss_fn, optimizer = model()
 
 def show_preds():
     resnet18.eval()
@@ -213,21 +222,35 @@ def train_slb(epochs):
                 
                 # with torch.no_grad():
                 
-                for eval_step, test_dic in enumerate(veri_test_loader):
+                for val_step, test_dic in enumerate(veri_test_loader):
             
                     test_images = test_dic['image'].squeeze().to(device)
                     test_labels = test_dic['label'].squeeze().to(device)
             
                     test_outputs = resnet18(test_images)
             
+                    loss = loss_fn(test_outputs, test_labels)
+
+                    val_loss += loss.item()
+
                     _, pred = torch.max(test_outputs,1)
 
                     n_samples += test_labels.size(0)
 
                     correct += (pred == test_labels).sum().item()
-                        
-                print(f'Accuracy of the network on the 280 test images: {100 * correct // n_samples} %')
+
+                val_loss /= (val_step + 1)      
+
+                accuracy = 100 * correct // n_samples
+                
+                print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f} %')
+    
+    train_loss /= (train_step + 1)
+
+    print(f'Training Loss: {train_loss:.4f}')
+
     print("Training Finished")
+
 train_slb(epochs=5)
 
 # show_preds()
