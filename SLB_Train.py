@@ -34,9 +34,9 @@ def directory_paths():
     Dsl_path = osp.join(dataset_dir,'Dsl/')
     Dsl_test_path = osp.join(dataset_dir, 'Dsl_test/')
     root_dir = osp.join(dataset_dir,'Dsl')
-    return dataset_dir, train_dir, train_list, test_dir, train_list, test_list, Dsl_path, Dsl_test_path, root_dir
+    return V, dataset_dir, train_dir, train_list, test_dir, train_list, test_list, Dsl_path, Dsl_test_path, root_dir
 
-dataset_dir, train_dir, train_list, test_dir, train_list, test_list, Dsl_path, Dsl_test_path, root_dir = directory_paths()
+V, dataset_dir, train_dir, train_list, test_dir, train_list, test_list, Dsl_path, Dsl_test_path, root_dir = directory_paths()
 
 def data_image_labels(train_dir, train_list):
         train_data = V.process_dir(train_dir,train_list, relabel=True)
@@ -85,14 +85,14 @@ def Data_Rotation(Train_Images,Data_Size):
     Dsl_Label = torch.Tensor(Dsl_Label)
     return Dsl, Dsl_Label
 
-def get_data():
+def get_data(No_of_Train_Images, No_of_Test_Images):
     Train_Images, Train_Labels, Train_Cams = data_image_labels(train_dir, train_list)
-    Dsl, Dsl_Label= Data_Rotation(Train_Images,2000)
+    Dsl, Dsl_Label= Data_Rotation(Train_Images,No_of_Train_Images)
     Test_Images, Test_Labels, Test_Cams = data_image_labels(test_dir,test_list)
-    Dsl_test, Dsl_Label_test = Data_Rotation(Test_Images,28)
+    Dsl_test, Dsl_Label_test = Data_Rotation(Test_Images,No_of_Test_Images)
     return Dsl, Dsl_Label, Dsl_test, Dsl_Label_test
 
-Dsl, Dsl_Label, Dsl_test, Dsl_Label_test = get_data()
+Dsl, Dsl_Label, Dsl_test, Dsl_Label_test = get_data(4000,1120)
 
 def save_pkl(D,path):
     with open(path, 'wb') as f:
@@ -102,19 +102,16 @@ def read_pkl(path):
     with open(path, 'rb') as f:
         return pickle.load(f)
 
-for i in range(len(Dsl)):
-    D = {}
-    D['image'] = Dsl[i]
-    D['label'] = Dsl_Label[i]
-    tmp = Dsl_path + f'{i}.pkl'
-    save_pkl(D,tmp)
+def save_pkl_folder(Data, Data_Label, path):
+    for i in range(len(Data)):
+        D = {}
+        D['image'] = Data[i]
+        D['label'] = Data_Label[i]
+        tmp = path + f'{i}.pkl'
+        save_pkl(D,tmp)
 
-for i in range(len(Dsl_test)):
-    D_test = {}
-    D_test['image'] = Dsl_test[i]
-    D_test['label'] = Dsl_Label_test[i]
-    tmp = Dsl_test_path + f'{i}.pkl'
-    save_pkl(D,tmp)
+save_pkl_folder(Dsl,Dsl_Label,Dsl_path)
+save_pkl_folder(Dsl_test, Dsl_Label_test, Dsl_test_path)
 
 class Veri(Dataset):
     """dataset."""
@@ -195,11 +192,12 @@ def train_slb(epochs):
     
     for e in range(0, epochs):
         
-        train_loss = 0; val_loss = 0;accuracy = 0
+        train_loss = 0; val_loss = 0
         
         for train_step, dic in enumerate(veri_loader):
 
             train_images = dic['image'].squeeze().to(device)
+
             train_labels = dic['label'].squeeze().to(device)
          
             optimizer.zero_grad()                 # Zero the parameter gradient
@@ -218,13 +216,12 @@ def train_slb(epochs):
                 
                 print(f'[{e + 1}, {train_step + 1}] loss: {train_loss / 20:.3f}')
                 
-                train_loss = 0.0 ;correct = 0.0; n_samples = 0.0
-                
-                # with torch.no_grad():
+                correct = 0; n_samples = 0; accuracy = 0
                 
                 for val_step, test_dic in enumerate(veri_test_loader):
             
                     test_images = test_dic['image'].squeeze().to(device)
+
                     test_labels = test_dic['label'].squeeze().to(device)
             
                     test_outputs = resnet18(test_images)
@@ -244,10 +241,12 @@ def train_slb(epochs):
                 accuracy = 100 * correct // n_samples
                 
                 print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f} %')
-    
-    train_loss /= (train_step + 1)
 
-    print(f'Training Loss: {train_loss:.4f}')
+                # show_preds()
+
+        train_loss /= (train_step + 1)
+
+        print(f'Training Loss: {train_loss:.4f}')
 
     print("Training Finished")
 
