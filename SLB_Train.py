@@ -92,7 +92,7 @@ def get_data(No_of_Train_Images, No_of_Test_Images):
     Dsl_test, Dsl_Label_test = Data_Rotation(Test_Images,No_of_Test_Images)
     return Dsl, Dsl_Label, Dsl_test, Dsl_Label_test
 
-Dsl, Dsl_Label, Dsl_test, Dsl_Label_test = get_data(4000,1120)
+Dsl, Dsl_Label, Dsl_test, Dsl_Label_test = get_data(15,5)  #4000,1120
 
 def save_pkl(D,path):
     with open(path, 'wb') as f:
@@ -144,7 +144,7 @@ class_names = veri.class_names
 def show_images(images, labels,preds):
     plt.figure(figsize=(8, 4))
     for i, image in enumerate(images):
-        plt.subplot(1, 28, i + 1, xticks=[], yticks=[])
+        plt.subplot(1,28, i + 1, xticks=[], yticks=[])
         image = image.numpy().transpose((1, 2, 0))
         mean = np.array([0.485, 0.456, 0.406])
         std = np.array([0.229, 0.224, 0.225])
@@ -169,17 +169,15 @@ def show_plot(veri_loader):
         show_images(images_batch,labels_batch,labels_batch)
 
 def model():
-    resnet18 = ResNet_SLB.resnet18_SLB(4).to(device)
+    resnet18 = ResNet_SLB.resnet18_SLB(4)
     loss_fn = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(resnet18.parameters(), lr=3e-5)
+    optimizer = torch.optim.Adam(resnet18.parameters(),lr=1e-4, betas = (0.9,0.999),eps = 1e-08, weight_decay=5e-4) # as per the research paper
     return resnet18 , loss_fn, optimizer
 
 resnet18, loss_fn, optimizer = model()
 
-def show_preds():
-    resnet18.eval()
+def show_preds(): 
     for index, dic in enumerate(veri_loader):
-        print(dic['image'].squeeze().size())
         images = dic['image'].squeeze()
         labels = dic['label'].squeeze()
         outputs = resnet18(images)
@@ -203,7 +201,7 @@ def train_slb(epochs):
             optimizer.zero_grad()                 # Zero the parameter gradient
 
             outputs = resnet18(train_images)      # Fsl
-
+            
             loss = loss_fn(outputs, train_labels) # Loss
             
             loss.backward()                       # Back Prop
@@ -220,9 +218,9 @@ def train_slb(epochs):
                 
                 for val_step, test_dic in enumerate(veri_test_loader):
             
-                    test_images = test_dic['image'].squeeze().to(device)
+                    test_images = test_dic['image'].squeeze()
 
-                    test_labels = test_dic['label'].squeeze().to(device)
+                    test_labels = test_dic['label'].squeeze()
             
                     test_outputs = resnet18(test_images)
             
@@ -238,11 +236,12 @@ def train_slb(epochs):
 
                 val_loss /= (val_step + 1)      
 
-                accuracy = 100 * correct // n_samples
+                accuracy = 100 * correct / n_samples
                 
                 print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f} %')
 
-                # show_preds()
+                if accuracy >= 95:
+                    show_preds()
 
         train_loss /= (train_step + 1)
 
@@ -250,6 +249,5 @@ def train_slb(epochs):
 
     print("Training Finished")
 
-train_slb(epochs=5)
+train_slb(epochs=20)
 
-# show_preds()
