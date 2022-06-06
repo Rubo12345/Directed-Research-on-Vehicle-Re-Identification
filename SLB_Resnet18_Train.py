@@ -27,8 +27,8 @@ train_dir = osp.join(dataset_dir, 'image_train')
 train_list = None   # I think data gets shuffled using this  # 37778
 test_dir = osp.join(dataset_dir,'image_test')
 test_list = None
-Dsl_path = osp.join(dataset_dir,'Dsl')
-Dsl_test_path = osp.join(dataset_dir, 'Dsl_test')
+Dsl_path = osp.join(dataset_dir,'Dsl/')
+Dsl_test_path = osp.join(dataset_dir, 'Dsl_test/')
 root_dir = osp.join(dataset_dir,'Dsl')
 
 def data_image_labels(train_dir, train_list):
@@ -103,7 +103,7 @@ for i in range(len(Dsl_test)):
     D_test['image'] = Dsl_test[i]
     D_test['label'] = Dsl_Label_test[i]
     tmp = Dsl_test_path + f'{i}.pkl'
-    save_pkl(D,tmp)
+    save_pkl(D_test,tmp)
 
 class Veri(Dataset):
     """dataset."""
@@ -197,7 +197,7 @@ def train(epochs):
                 for val_step, D_test in enumerate(veri_test_loader):
                     test_images = D_test['image'].squeeze()
                     test_labels = D_test['label'].squeeze()
-
+                
                     outputs = resnet18(test_images)
                     loss = loss_fn(outputs, test_labels)
                     val_loss += loss.item()
@@ -205,7 +205,7 @@ def train(epochs):
                     _, preds = torch.max(outputs, 1)
                     # print([preds, test_labels])
                     accuracy += sum((preds == test_labels).numpy())
-
+                    # print(accuracy)
                 val_loss /= (val_step + 1)
                 accuracy = accuracy/len(veri_test)
                 print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f}')
