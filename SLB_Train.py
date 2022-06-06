@@ -92,7 +92,7 @@ def get_data(No_of_Train_Images, No_of_Test_Images):
     Dsl_test, Dsl_Label_test = Data_Rotation(Test_Images,No_of_Test_Images)
     return Dsl, Dsl_Label, Dsl_test, Dsl_Label_test
 
-Dsl, Dsl_Label, Dsl_test, Dsl_Label_test = get_data(15,5)  #4000,1120
+Dsl, Dsl_Label, Dsl_test, Dsl_Label_test = get_data(4000,1120)  #4000,1120
 
 def save_pkl(D,path):
     with open(path, 'wb') as f:
@@ -169,7 +169,7 @@ def show_plot(veri_loader):
         show_images(images_batch,labels_batch,labels_batch)
 
 def model():
-    resnet18 = ResNet_SLB.resnet18_SLB(4)
+    resnet18 = ResNet_SLB.resnet18_SLB(4).to(device)
     loss_fn = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(resnet18.parameters(),lr=1e-4, betas = (0.9,0.999),eps = 1e-08, weight_decay=5e-4) # as per the research paper
     return resnet18 , loss_fn, optimizer
@@ -218,9 +218,9 @@ def train_slb(epochs):
                 
                 for val_step, test_dic in enumerate(veri_test_loader):
             
-                    test_images = test_dic['image'].squeeze()
+                    test_images = test_dic['image'].squeeze().to(device)
 
-                    test_labels = test_dic['label'].squeeze()
+                    test_labels = test_dic['label'].squeeze().to(device)
             
                     test_outputs = resnet18(test_images)
             
@@ -240,8 +240,8 @@ def train_slb(epochs):
                 
                 print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f} %')
 
-                if accuracy >= 95:
-                    show_preds()
+                # if accuracy >= 95:
+                #     show_preds()
 
         train_loss /= (train_step + 1)
 
