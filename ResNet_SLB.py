@@ -411,7 +411,7 @@ def resnet18(num_classes, loss='softmax', pretrained=True, **kwargs):
         init_pretrained_weights(model, model_urls['resnet18'])
     return model
 
-def resnet18_SLB(num_classes, loss='softmax', pretrained=True, **kwargs):
+def resnet18_SLB(num_classes, loss='softmax', pretrained=False, **kwargs):
     model = ResNet_SLB(
         num_classes=num_classes,
         loss=loss,
