@@ -168,7 +168,7 @@ def show_plot(veri_loader):
         print(labels_batch.shape)
         show_images(images_batch,labels_batch,labels_batch)
 
-def optimizer(optim, param_groups):
+def Optimizer(optim, param_groups):
     if optim == 'adam':
         return torch.optim.Adam(param_groups, lr=1e-4, weight_decay=5e-4,eps = 1e-8,
                                 betas=(0.9,0.999))
@@ -191,10 +191,10 @@ def optimizer(optim, param_groups):
 def model():
     resnet18 = ResNet_SLB.resnet18_SLB(4).to(device)
     loss_fn = torch.nn.CrossEntropyLoss()
-    optim = optimizer('adam',resnet18.parameters())
+    optimizer = Optimizer('adam',resnet18.parameters())
     # optim = torch.optim.Adam(resnet18.parameters(), lr=1e-4, weight_decay=1e-8,
                                 # betas=(0.9, 0.999))
-    return resnet18 , loss_fn, optim
+    return resnet18 , loss_fn, optimizer
 
 resnet18, loss_fn, optimizer = model()
 
