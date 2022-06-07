@@ -169,30 +169,21 @@ def show_plot(veri_loader):
         show_images(images_batch,labels_batch,labels_batch)
 
 def optimizer(optim, param_groups):
-    lr=1e-4,  # learning rate
-    weight_decay=5e-4,  # weight decay
-    momentum=0.9,  # momentum factor for sgd and rmsprop
-    sgd_dampening=0.0,  # sgd's dampening for momentum
-    sgd_nesterov=False,  # whether to enable sgd's Nesterov momentum
-    rmsprop_alpha=0.99,  # rmsprop's smoothing constant
-    adam_beta1=0.9,  # exponential decay rate for adam's first moment
-    adam_beta2=0.999,  # # exponential decay rate for adam's second moment
-    
     if optim == 'adam':
         return torch.optim.Adam(param_groups, lr=1e-4, weight_decay=5e-4,eps = 1e-8,
                                 betas=(0.9,0.999))
 
     elif optim == 'amsgrad':
-        return torch.optim.Adam(param_groups, lr=lr, weight_decay=weight_decay,
-                                betas=(adam_beta1, adam_beta2), amsgrad=True)
+        return torch.optim.Adam(param_groups, lr=1e-4, weight_decay=5e-4,
+                                betas=(0.9,0.999), amsgrad=True)
 
     elif optim == 'sgd':
-        return torch.optim.SGD(param_groups, lr=lr, momentum=momentum, weight_decay=weight_decay,
-                               dampening=sgd_dampening, nesterov=sgd_nesterov)
+        return torch.optim.SGD(param_groups, lr=1e-4, momentum=0.9, weight_decay=5e-4,
+                               dampening=0.0, nesterov=False)
 
     elif optim == 'rmsprop':
-        return torch.optim.RMSprop(param_groups, lr=lr, momentum=momentum, weight_decay=weight_decay,
-                                   alpha=rmsprop_alpha)
+        return torch.optim.RMSprop(param_groups, lr=1e-4, momentum=0.9, weight_decay=5e-4,
+                                   alpha=0.99)
 
     else:
         raise ValueError('Unsupported optimizer: {}'.format(optim))
@@ -280,5 +271,5 @@ def train_slb(epochs):
 
     print("Training Finished")
 
-train_slb(epochs=20)
+train_slb(epochs=10)
 
