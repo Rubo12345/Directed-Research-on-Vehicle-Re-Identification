@@ -92,7 +92,7 @@ def get_data(No_of_Train_Images, No_of_Test_Images):
     Dsl_test, Dsl_Label_test = Data_Rotation(Test_Images,No_of_Test_Images)
     return Dsl, Dsl_Label, Dsl_test, Dsl_Label_test
 
-Dsl, Dsl_Label, Dsl_test, Dsl_Label_test = get_data(4000,1120)  #4000,1120
+Dsl, Dsl_Label, Dsl_test, Dsl_Label_test = get_data(40,11)  #4000,1120
 
 def save_pkl(D,path):
     with open(path, 'wb') as f:
@@ -168,11 +168,42 @@ def show_plot(veri_loader):
         print(labels_batch.shape)
         show_images(images_batch,labels_batch,labels_batch)
 
+def optimizer(optim, param_groups):
+    lr=1e-4,  # learning rate
+    weight_decay=5e-4,  # weight decay
+    momentum=0.9,  # momentum factor for sgd and rmsprop
+    sgd_dampening=0.0,  # sgd's dampening for momentum
+    sgd_nesterov=False,  # whether to enable sgd's Nesterov momentum
+    rmsprop_alpha=0.99,  # rmsprop's smoothing constant
+    adam_beta1=0.9,  # exponential decay rate for adam's first moment
+    adam_beta2=0.999,  # # exponential decay rate for adam's second moment
+    
+    if optim == 'adam':
+        return torch.optim.Adam(param_groups, lr=1e-4, weight_decay=5e-4,eps = 1e-8,
+                                betas=(0.9,0.999))
+
+    elif optim == 'amsgrad':
+        return torch.optim.Adam(param_groups, lr=lr, weight_decay=weight_decay,
+                                betas=(adam_beta1, adam_beta2), amsgrad=True)
+
+    elif optim == 'sgd':
+        return torch.optim.SGD(param_groups, lr=lr, momentum=momentum, weight_decay=weight_decay,
+                               dampening=sgd_dampening, nesterov=sgd_nesterov)
+
+    elif optim == 'rmsprop':
+        return torch.optim.RMSprop(param_groups, lr=lr, momentum=momentum, weight_decay=weight_decay,
+                                   alpha=rmsprop_alpha)
+
+    else:
+        raise ValueError('Unsupported optimizer: {}'.format(optim))
+
 def model():
     resnet18 = ResNet_SLB.resnet18_SLB(4).to(device)
     loss_fn = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(resnet18.parameters(),lr=1e-4, betas = (0.9,0.999),eps = 1e-08, weight_decay=5e-4) # as per the research paper
-    return resnet18 , loss_fn, optimizer
+    optim = optimizer('adam',resnet18.parameters())
+    # optim = torch.optim.Adam(resnet18.parameters(), lr=1e-4, weight_decay=1e-8,
+                                # betas=(0.9, 0.999))
+    return resnet18 , loss_fn, optim
 
 resnet18, loss_fn, optimizer = model()
 
