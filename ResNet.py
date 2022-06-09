@@ -579,7 +579,8 @@ class ResNet50_BNNeck_baseline(nn.Module):
 
         cls_score_global = self.classifier_global(bn_feat_global)
         # return cls_score_global, global_feat, None, None  # global feature for triplet loss
-        return cls_score_global, global_feat, bn_feat_global, [f_layer1, f_layer2, f_layer3, f_layer4] # global feature for triplet lossd
+        # return cls_score_global, global_feat, bn_feat_global, [f_layer1, f_layer2, f_layer3, f_layer4] # global feature for triplet lossd
+        return cls_score_global
         # return cls_score_global, global_feat, bn_feat_global # global feature for triplet lossd
 
 def resnet50_bnneck_baseline(num_classes, loss={'xent'}, pretrained=True, **kwargs):
@@ -593,16 +594,8 @@ def resnet50_bnneck_baseline(num_classes, loss={'xent'}, pretrained=True, **kwar
 
 def test():
     net = resnet50_bnneck_baseline(4)
-    x = torch.randn(2,3,224,224)
-    print(x.type)
-    y = net(x) # return cls_score_global, global_feat, bn_feat_global, [f_layer1, f_layer2, f_layer3, f_layer4] # global feature for triplet loss
-    print(y[0].shape)
-    print(y[0])
-    print(y[1].shape)
-    print(y[1])
-    print(y[2].shape)
-    print(y[3])
-    print(len(y[3]))
-test()
-
+    x = torch.randn(28,3,224,224)
+    y = net(x).to('cuda') 
+    print(y.shape)
+# test()
 
