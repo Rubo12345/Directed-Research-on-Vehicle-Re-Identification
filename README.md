@@ -2,10 +2,10 @@
 
 Self Supervised Geometric Features Discovery vis Interpretable Attention
 
-Branches:
-1) Global Branch (GB): Encode robust global features codes from an input image.
-2) Self-Supervised Learning Branch (SLB): SLB performs the auxiliary self-supervised representation learning
-3) Geometrics Features Branch (GFB): By sharing its encoder with SLB, GFB discovers discriminative features from automatically discovered geometric locations without corresponding supervision.
+Framework Branches:
+1) Global Branch (GB): Encode robust global features codes from an input image. (Architecture - ResNet50)
+2) Self-Supervised Learning Branch (SLB): SLB performs the auxiliary self-supervised representation learning (Architecture - ResNet18)
+3) Geometrics Features Branch (GFB): By sharing its encoder with SLB, GFB discovers discriminative features from automatically discovered geometric locations without corresponding supervision. (Architecture - ResNet18, and later Conv4_x, Conv5_x of ResNet50)
 
 Problem Setup:
 Input -> Query Image
