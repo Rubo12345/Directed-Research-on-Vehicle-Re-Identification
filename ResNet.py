@@ -470,7 +470,6 @@ class ResNet_GFB(nn.Module):
         self.global_avgpool = nn.AdaptiveAvgPool2d(1)
         self.fc = self._construct_fc_layer(fc_dims, 512 * block.expansion, dropout_p)
         self.classifier = nn.Linear(self.feature_dim, num_classes)
-
         self._init_params()
 
     def _make_layer(self, block, planes, blocks, stride=1):
@@ -552,25 +551,37 @@ class ResNet_GFB(nn.Module):
         x = self.layer3(x)
         x = self.layer4(x)
         # print(x.shape)
+
         x1 = CAM_Module(Module).forward(x)
+        
         # print(x.shape)
+        
         net = resnet50_bnneck_baseline(4)
+        
         y,RN50_layer2 = net(Initial)[0],net(Initial)[1]
+        
         # print(RN50_layer2.shape)
+        
         m = torch.mul(x1,RN50_layer2)    # Element-Wise Multiplication
+        
         # print(m.shape)
+        
         f_layer3 = self.global_branch[0](m)
-        print(f_layer3.shape)
+        
+        # print(f_layer3.shape)
+        
         f_layer4 = self.global_branch[1](f_layer3)
-        print(f_layer4.shape)
+        
+        # print(f_layer4.shape)
+        
         return f_layer4
 
     def forward(self, x):
         f = self.featuremaps(x)
         global_feat = self.global_avgpool(f)
-        print(global_feat.shape)
+        # print(global_feat.shape)
         global_feat = global_feat.view(global_feat.size(0), -1)
-        print(global_feat.shape)
+        # print(global_feat.shape)
 
         if not self.use_bnneck:
             bn_feat_global = global_feat
@@ -578,7 +589,8 @@ class ResNet_GFB(nn.Module):
             bn_feat_global = self.bottleneck_global(global_feat)  # normalize for angular softmax
 
         cls_score_global = self.classifier_global(bn_feat_global)
-        print(cls_score_global.shape)
+        # print(cls_score_global.shape)
+
         # return cls_score_global, global_feat, None, None  # global feature for triplet loss
         # return cls_score_global, global_feat, bn_feat_global, [f_layer1, f_layer2, f_layer3, f_layer4] # global feature for triplet lossd
         return cls_score_global
@@ -599,6 +611,90 @@ class ResNet_GFB(nn.Module):
         #     return y, v
         # else:
         #     raise KeyError("Unsupported loss: {}".format(self.loss))
+
+
+class IBN(nn.Module):
+    def __init__(self, planes):
+        super(IBN, self).__init__()
+        half1 = int(planes/2)
+        self.half = half1
+        half2 = planes - half1
+        self.IN = nn.InstanceNorm2d(half1, affine=True)
+        self.BN = nn.BatchNorm2d(half2)
+    
+    def forward(self, x):
+        split = torch.split(x, self.half, 1)
+        out1 = self.IN(split[0].contiguous())
+        out2 = self.BN(split[1].contiguous())
+        out = torch.cat((out1, out2), 1)
+        return out
+
+class ResNet50_BNNeck_baseline(nn.Module):
+    def __init__(self, num_classes=576, loss={'xent'}, pretrained=True, use_bnneck=True,
+                 trans_classes=79, **kwargs):
+        super().__init__()
+        base = ResNet(
+            num_classes=num_classes,
+            loss=loss,
+            block=Bottleneck,
+            layers=[3, 4, 6, 3],
+            last_stride=1,
+            with_classifier=False,
+            fc_dims=None,
+            dropout_p=None,
+            **kwargs)
+        base.load_param('resnet50')
+        # self.args = kwargs['args']
+        self.common_out_dim = 2048
+        self.shallow_branch = nn.Sequential(base.conv1, base.bn1, base.relu,base.maxpool, base.layer1, base.layer2)
+        self.global_branch = nn.Sequential(base.layer3, base.layer4)
+        self.gap_global = nn.AdaptiveAvgPool2d(1)
+        self.use_bnneck = use_bnneck
+
+        if not self.use_bnneck:
+            self.classifier_global = nn.Linear(self.common_out_dim, num_classes)
+        elif self.use_bnneck:
+            self.bottleneck_global = nn.BatchNorm1d(self.common_out_dim)
+            self.bottleneck_global.bias.requires_grad_(False)  # no shift
+            self.classifier_global = nn.Linear(self.common_out_dim, num_classes, bias=False)
+
+            self.bottleneck_global.apply(weights_init_kaiming)
+            self.classifier_global.apply(weights_init_classifier)
+
+        channels = [256, 512, 1024, 2048]
+        self.domain_norms = nn.ModuleList()
+        for index in range(len(channels)):
+            self.domain_norms.append(IBN(channels[index]))
+
+        '''# if self.args.IBN_OR_IN == 'IN':
+        #     for index in range(len(channels)):
+        #         self.domain_norms.append(nn.InstanceNorm2d(channels[index], affine=True))
+        # elif self.args.IBN_OR_IN == 'IBN':
+        #     for index in range(len(channels)):
+        #         self.domain_norms.append(IBN(channels[index]))
+        # else:
+        #     raise IOError'''
+
+    def forward(self, x):
+        f_layer1 = self.shallow_branch[:-1](x)
+        f_layer2 = self.shallow_branch[-1](f_layer1)
+        f_layer3 = self.global_branch[0](f_layer2)
+        f_layer4 = self.global_branch[1](f_layer3)
+        f_g = f_layer4
+        global_feat = self.gap_global(f_g)  # (b, 2048, 1, 1)
+        global_feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
+
+        if not self.use_bnneck:
+            bn_feat_global = global_feat
+        elif self.use_bnneck:
+            bn_feat_global = self.bottleneck_global(global_feat)  # normalize for angular softmax
+
+        cls_score_global = self.classifier_global(bn_feat_global)
+        # return cls_score_global, global_feat, None, None  # global feature for triplet loss
+        # return cls_score_global, global_feat, bn_feat_global, [f_layer1, f_layer2, f_layer3, f_layer4] # global feature for triplet lossd
+
+        # return cls_score_global, global_feat, bn_feat_global # global feature for triplet lossds
+        return cls_score_global, f_layer2
 
 """
 Residual network configurations:
@@ -735,88 +831,6 @@ def resnet50_fc512(num_classes, loss='softmax', pretrained=True, **kwargs):
         init_pretrained_weights(model, model_urls['resnet50'])
     return model
 
-class IBN(nn.Module):
-    def __init__(self, planes):
-        super(IBN, self).__init__()
-        half1 = int(planes/2)
-        self.half = half1
-        half2 = planes - half1
-        self.IN = nn.InstanceNorm2d(half1, affine=True)
-        self.BN = nn.BatchNorm2d(half2)
-    
-    def forward(self, x):
-        split = torch.split(x, self.half, 1)
-        out1 = self.IN(split[0].contiguous())
-        out2 = self.BN(split[1].contiguous())
-        out = torch.cat((out1, out2), 1)
-        return out
-
-class ResNet50_BNNeck_baseline(nn.Module):
-    def __init__(self, num_classes=576, loss={'xent'}, pretrained=True, use_bnneck=True,
-                 trans_classes=79, **kwargs):
-        super().__init__()
-        base = ResNet(
-            num_classes=num_classes,
-            loss=loss,
-            block=Bottleneck,
-            layers=[3, 4, 6, 3],
-            last_stride=1,
-            with_classifier=False,
-            fc_dims=None,
-            dropout_p=None,
-            **kwargs)
-        base.load_param('resnet50')
-        # self.args = kwargs['args']
-        self.common_out_dim = 2048
-        self.shallow_branch = nn.Sequential(base.conv1, base.bn1, base.relu,base.maxpool, base.layer1, base.layer2)
-        self.global_branch = nn.Sequential(base.layer3, base.layer4)
-        self.gap_global = nn.AdaptiveAvgPool2d(1)
-        self.use_bnneck = use_bnneck
-
-        if not self.use_bnneck:
-            self.classifier_global = nn.Linear(self.common_out_dim, num_classes)
-        elif self.use_bnneck:
-            self.bottleneck_global = nn.BatchNorm1d(self.common_out_dim)
-            self.bottleneck_global.bias.requires_grad_(False)  # no shift
-            self.classifier_global = nn.Linear(self.common_out_dim, num_classes, bias=False)
-
-            self.bottleneck_global.apply(weights_init_kaiming)
-            self.classifier_global.apply(weights_init_classifier)
-
-        channels = [256, 512, 1024, 2048]
-        self.domain_norms = nn.ModuleList()
-        for index in range(len(channels)):
-            self.domain_norms.append(IBN(channels[index]))
-
-        '''# if self.args.IBN_OR_IN == 'IN':
-        #     for index in range(len(channels)):
-        #         self.domain_norms.append(nn.InstanceNorm2d(channels[index], affine=True))
-        # elif self.args.IBN_OR_IN == 'IBN':
-        #     for index in range(len(channels)):
-        #         self.domain_norms.append(IBN(channels[index]))
-        # else:
-        #     raise IOError'''
-
-    def forward(self, x):
-        f_layer1 = self.shallow_branch[:-1](x)
-        f_layer2 = self.shallow_branch[-1](f_layer1)
-        f_layer3 = self.global_branch[0](f_layer2)
-        f_layer4 = self.global_branch[1](f_layer3)
-        f_g = f_layer4
-        global_feat = self.gap_global(f_g)  # (b, 2048, 1, 1)
-        global_feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
-
-        if not self.use_bnneck:
-            bn_feat_global = global_feat
-        elif self.use_bnneck:
-            bn_feat_global = self.bottleneck_global(global_feat)  # normalize for angular softmax
-
-        cls_score_global = self.classifier_global(bn_feat_global)
-        # return cls_score_global, global_feat, None, None  # global feature for triplet loss
-        # return cls_score_global, global_feat, bn_feat_global, [f_layer1, f_layer2, f_layer3, f_layer4] # global feature for triplet lossd
-        return cls_score_global, f_layer2
-        # return cls_score_global, global_feat, bn_feat_global # global feature for triplet lossd
-
 def resnet50_bnneck_baseline(num_classes, loss={'xent'}, pretrained=True, **kwargs):
     model = ResNet50_BNNeck_baseline(
         num_classes=num_classes,
@@ -831,5 +845,5 @@ def test():
     x = torch.randn(28,3,224,224)
     y = net(x).to('cuda')
     # print(y.shape)
-test()
+# test()
 
