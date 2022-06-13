@@ -20,7 +20,7 @@ import pickle
 from glob import glob
 from itertools import islice
 from Datasets import veri_train, Rotation
-import ResNet_SLB
+import ResNet
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -92,7 +92,7 @@ def get_data(No_of_Train_Images, No_of_Test_Images):
     Dsl_test, Dsl_Label_test = Data_Rotation(Test_Images,No_of_Test_Images)
     return Dsl, Dsl_Label, Dsl_test, Dsl_Label_test
 
-Dsl, Dsl_Label, Dsl_test, Dsl_Label_test = get_data(40,11)  #4000,1120
+Dsl, Dsl_Label, Dsl_test, Dsl_Label_test = get_data(560,56)  #4000,1120
 
 def save_pkl(D,path):
     with open(path, 'wb') as f:
@@ -189,20 +189,21 @@ def Optimizer(optim, param_groups):
         raise ValueError('Unsupported optimizer: {}'.format(optim))
 
 def model():
-    resnet18 = ResNet_SLB.resnet18_SLB(4).to(device)
+    # resnet18_slb = ResNet.resnet18_SLB(4).to(device)
+    # resnet50_gb = ResNet.resnet50_bnneck_baseline(4).to(device)
+    resnet18_GFB = ResNet.resnet18_GFB(4).to(device)
     loss_fn = torch.nn.CrossEntropyLoss()
-    optimizer = Optimizer('adam',resnet18.parameters())
-    # optim = torch.optim.Adam(resnet18.parameters(), lr=1e-4, weight_decay=1e-8,
-                                # betas=(0.9, 0.999))
-    return resnet18 , loss_fn, optimizer
+    optimizer = Optimizer('adam',resnet18_GFB.parameters())
+    # optim = torch.optim.Adam(resnet18.parameters(), lr=1e-4, weight_decay=1e-8,betas=(0.9, 0.999))
+    return resnet18_GFB, loss_fn, optimizer
 
-resnet18, loss_fn, optimizer = model()
+resnet18_GFB, loss_fn, optimizer = model()
 
 def show_preds(): 
     for index, dic in enumerate(veri_loader):
         images = dic['image'].squeeze()
         labels = dic['label'].squeeze()
-        outputs = resnet18(images)
+        outputs = resnet50_gb(images)
         _, preds = torch.max(outputs, 1)
         show_images(images, labels, preds)
 
@@ -222,7 +223,7 @@ def train_slb(epochs):
          
             optimizer.zero_grad()                 # Zero the parameter gradient
 
-            outputs = resnet18(train_images)      # Fsl
+            outputs = resnet18_GFB(train_images)      # Fsl
             
             loss = loss_fn(outputs, train_labels) # Loss
             
@@ -244,7 +245,7 @@ def train_slb(epochs):
 
                     test_labels = test_dic['label'].squeeze().to(device)
             
-                    test_outputs = resnet18(test_images)
+                    test_outputs = resnet18_GFB(test_images)
             
                     loss = loss_fn(test_outputs, test_labels)
 
