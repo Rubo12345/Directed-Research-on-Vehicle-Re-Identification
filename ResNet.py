@@ -14,6 +14,8 @@ from attention import CAM_Module
 import logging
 import math
 
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
 model_urls = {
     'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
     'resnet34': 'https://download.pytorch.org/models/resnet34-333f7ec4.pth',
@@ -42,11 +44,9 @@ class BasicBlock(nn.Module):
 
     def forward(self, x):
         residual = x
-
         out = self.conv1(x)
         out = self.bn1(out)
         out = self.relu(out)
-
         out = self.conv2(out)
         out = self.bn2(out)
 
@@ -65,8 +65,7 @@ class Bottleneck(nn.Module):
         super(Bottleneck, self).__init__()
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride,
-                               padding=1, bias=False)
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride,padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
         self.conv3 = nn.Conv2d(planes, planes * self.expansion, kernel_size=1, bias=False)
         self.bn3 = nn.BatchNorm2d(planes * self.expansion)
@@ -130,23 +129,18 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 256, layers[2], stride=1)   # Conv_4x
         self.layer4 = self._make_layer(block, 512, layers[3], stride=1)   # Conv_5x
 
-        
-
         self.global_avgpool = nn.AdaptiveAvgPool2d(1)
         self.fc = self._construct_fc_layer(fc_dims, 512 * block.expansion, dropout_p)
         self.classifier = nn.Linear(self.feature_dim, num_classes)
-
         self._init_params()
 
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes * block.expansion,
-                          kernel_size=1, stride=stride, bias=False),
+                nn.Conv2d(self.inplanes, planes * block.expansion,kernel_size=1, stride=stride, bias=False),
                 nn.BatchNorm2d(planes * block.expansion),
             )
-
         layers = []
         layers.append(block(self.inplanes, planes, stride, downsample))
         self.inplanes = planes * block.expansion
@@ -541,7 +535,8 @@ class ResNet_GFB(nn.Module):
             self.state_dict()[i].copy_(param_dict[i])
 
     def featuremaps(self, x):
-        Initial = x
+        # torch.cuda.empty_cache()
+        Initial = x.to(device)
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -556,7 +551,7 @@ class ResNet_GFB(nn.Module):
         
         # print(x.shape)
         
-        net = resnet50_bnneck_baseline(4)
+        net = resnet50_bnneck_baseline(4).to(device)
         
         y,RN50_layer2 = net(Initial)[0],net(Initial)[1]
         
@@ -593,7 +588,7 @@ class ResNet_GFB(nn.Module):
 
         # return cls_score_global, global_feat, None, None  # global feature for triplet loss
         # return cls_score_global, global_feat, bn_feat_global, [f_layer1, f_layer2, f_layer3, f_layer4] # global feature for triplet lossd
-        return cls_score_global
+        return cls_score_global        
         # return cls_score_global, global_feat, bn_feat_global # global feature for triplet lossd
         
         #--------------------------------
@@ -611,7 +606,6 @@ class ResNet_GFB(nn.Module):
         #     return y, v
         # else:
         #     raise KeyError("Unsupported loss: {}".format(self.loss))
-
 
 class IBN(nn.Module):
     def __init__(self, planes):
@@ -692,7 +686,6 @@ class ResNet50_BNNeck_baseline(nn.Module):
         cls_score_global = self.classifier_global(bn_feat_global)
         # return cls_score_global, global_feat, None, None  # global feature for triplet loss
         # return cls_score_global, global_feat, bn_feat_global, [f_layer1, f_layer2, f_layer3, f_layer4] # global feature for triplet lossd
-
         # return cls_score_global, global_feat, bn_feat_global # global feature for triplet lossds
         return cls_score_global, f_layer2
 
@@ -844,6 +837,6 @@ def test():
     net = resnet18_GFB(4)
     x = torch.randn(28,3,224,224)
     y = net(x).to('cuda')
-    # print(y.shape)
-# test()
+    print(y.shape)
+test()
 
