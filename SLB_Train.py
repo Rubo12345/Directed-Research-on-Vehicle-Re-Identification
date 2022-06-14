@@ -92,12 +92,12 @@ def get_data(No_of_Train_Images, No_of_Test_Images):
     Dsl_test, Dsl_Label_test = Data_Rotation(Test_Images,No_of_Test_Images)
     return Dsl, Dsl_Label, Dsl_test, Dsl_Label_test
 
-Dsl, Dsl_Label, Dsl_test, Dsl_Label_test = get_data(560,56)  #4000,1120
+Dsl, Dsl_Label, Dsl_test, Dsl_Label_test = get_data(56,28)  #4000,1120
 
 def save_pkl(D,path):
     with open(path, 'wb') as f:
         pickle.dump(D, f)
-    
+
 def read_pkl(path):
     with open(path, 'rb') as f:
         return pickle.load(f)
@@ -220,10 +220,10 @@ def train_slb(epochs):
             train_images = dic['image'].squeeze().to(device)
 
             train_labels = dic['label'].squeeze().to(device)
-         
+        
             optimizer.zero_grad()                 # Zero the parameter gradient
 
-            outputs = resnet18_GFB(train_images)      # Fsl
+            outputs = resnet18_GFB(train_images)  # Fsl
             
             loss = loss_fn(outputs, train_labels) # Loss
             
