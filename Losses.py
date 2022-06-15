@@ -6,6 +6,83 @@ import torch.nn as nn
 import torch.nn.functional as F
 from apply_2d_rotation import apply_2d_rotation
 
+# Smoothed Cross Entropy Loss
+class label_smooth_loss(torch.nn.Module):
+    def __init__(self, num_classes, smoothing=0.1):
+        super(label_smooth_loss, self).__init__()
+        eps = smoothing / num_classes
+        self.negative = eps
+        self.positive = (1 - smoothing) + eps
+    
+    def forward(self, pred, target):
+        pred = pred.log_softmax(dim=1)
+        true_dist = torch.zeros_like(pred)
+        true_dist.fill_(self.negative)
+        true_dist.scatter_(1, target.data.unsqueeze(1), self.positive)
+        return torch.sum(-true_dist * pred, dim=1).mean()
+
+# Cross Entropy Loss
+class CrossEntropyLoss(nn.Module):
+    """Cross entropy loss with label smoothing regularizer.
+
+    Reference:
+    Szegedy et al. Rethinking the Inception Architecture for Computer Vision. CVPR 2016.
+
+    Equation: y = (1 - epsilon) * y + epsilon / K.
+
+    Args:
+    - num_classes (int): number of classes
+    - epsilon (float): weight
+    - use_gpu (bool): whether to use gpu devices
+    - label_smooth (bool): whether to apply label smoothing, if False, epsilon = 0
+    """
+
+    def __init__(self, num_classes, epsilon=0.1, use_gpu=True, label_smooth=True):
+        super(CrossEntropyLoss, self).__init__()
+        self.num_classes = num_classes
+        self.epsilon = epsilon if label_smooth else 0
+        self.use_gpu = use_gpu
+        self.logsoftmax = nn.LogSoftmax(dim=1)
+
+    def forward(self, inputs, targets):
+        """
+        Args:
+        - inputs: prediction matrix (before softmax) with shape (batch_size, num_classes)
+        - targets: ground truth labels with shape (num_classes)
+        """
+        log_probs = self.logsoftmax(inputs)
+        targets = torch.zeros(log_probs.size()).scatter_(1, targets.unsqueeze(1).data.cpu(), 1)
+        if self.use_gpu: targets = targets.cuda()
+        targets = (1 - self.epsilon) * targets + self.epsilon / self.num_classes
+        loss = (- targets * log_probs).mean(0).sum()
+        return loss
+
+# Equivariance Constraint Loss
+class EquivarianceConstraintLoss(nn.Module):
+    def __init__(self, mode='l2', use_gpu=True):
+        super(EquivarianceConstraintLoss, self).__init__()
+        self.mode = mode
+        self.use_gpu = use_gpu
+
+    def forward(self, hp, hp_rot, label_rot):
+        loss_l2 = 0.
+        # loss_l1 = 0.
+        loss_kl = 0.
+        for r in range(4):
+            mask = label_rot == r
+            hp_masked = hp[mask].contiguous()
+            hp_masked = apply_2d_rotation(hp_masked, rotation=r * 90)
+
+            loss_l2 += torch.pow(hp_masked - hp_rot[mask], 2).sum()
+            # loss_l1 += torch.abs(hp_masked - hp_rot[mask]).sum()
+            loss_kl += (hp_masked * torch.log(hp_masked / hp_rot[mask].clamp(min=1e-9))).sum()
+
+        loss_kl = loss_kl / hp.size(0)
+        loss_l2 = loss_l2 / hp.nelement()
+        # loss_l1 = loss_l1 / hp.nelement()
+        return loss_kl * 0.4 + loss_l2 * 0.6
+
+# Triplet Loss
 class TripletLoss(nn.Module):
     """Triplet loss with hard positive/negative mining.
 
@@ -50,6 +127,7 @@ class TripletLoss(nn.Module):
         loss = self.ranking_loss(dist_an, dist_ap, y)
         return loss
 
+# Triplet Loss 
 class TripletLossSscl(nn.Module):
     """Triplet loss with hard positive/negative mining for sscl.
 
@@ -94,6 +172,7 @@ class TripletLossSscl(nn.Module):
         loss = self.ranking_loss(sim_ap, sim_an, y)
         return loss
 
+# Circle Loss
 class CircleLoss(object):
     def __init__(self, s=64, m=0.35):
         self.m = m
@@ -133,65 +212,7 @@ def normalize(x, axis=-1):
     x = 1. * x / (torch.norm(x, 2, axis, keepdim=True).expand_as(x) + 1e-12)
     return x
 
-class CrossEntropyLoss(nn.Module):
-    """Cross entropy loss with label smoothing regularizer.
-
-    Reference:
-    Szegedy et al. Rethinking the Inception Architecture for Computer Vision. CVPR 2016.
-
-    Equation: y = (1 - epsilon) * y + epsilon / K.
-
-    Args:
-    - num_classes (int): number of classes
-    - epsilon (float): weight
-    - use_gpu (bool): whether to use gpu devices
-    - label_smooth (bool): whether to apply label smoothing, if False, epsilon = 0
-    """
-
-    def __init__(self, num_classes, epsilon=0.1, use_gpu=True, label_smooth=True):
-        super(CrossEntropyLoss, self).__init__()
-        self.num_classes = num_classes
-        self.epsilon = epsilon if label_smooth else 0
-        self.use_gpu = use_gpu
-        self.logsoftmax = nn.LogSoftmax(dim=1)
-
-    def forward(self, inputs, targets):
-        """
-        Args:
-        - inputs: prediction matrix (before softmax) with shape (batch_size, num_classes)
-        - targets: ground truth labels with shape (num_classes)
-        """
-        log_probs = self.logsoftmax(inputs)
-        targets = torch.zeros(log_probs.size()).scatter_(1, targets.unsqueeze(1).data.cpu(), 1)
-        if self.use_gpu: targets = targets.cuda()
-        targets = (1 - self.epsilon) * targets + self.epsilon / self.num_classes
-        loss = (- targets * log_probs).mean(0).sum()
-        return loss
-
-class EquivarianceConstraintLoss(nn.Module):
-    def __init__(self, mode='l2', use_gpu=True):
-        super(EquivarianceConstraintLoss, self).__init__()
-        self.mode = mode
-        self.use_gpu = use_gpu
-
-    def forward(self, hp, hp_rot, label_rot):
-        loss_l2 = 0.
-        # loss_l1 = 0.
-        loss_kl = 0.
-        for r in range(4):
-            mask = label_rot == r
-            hp_masked = hp[mask].contiguous()
-            hp_masked = apply_2d_rotation(hp_masked, rotation=r * 90)
-
-            loss_l2 += torch.pow(hp_masked - hp_rot[mask], 2).sum()
-            # loss_l1 += torch.abs(hp_masked - hp_rot[mask]).sum()
-            loss_kl += (hp_masked * torch.log(hp_masked / hp_rot[mask].clamp(min=1e-9))).sum()
-
-        loss_kl = loss_kl / hp.size(0)
-        loss_l2 = loss_l2 / hp.nelement()
-        # loss_l1 = loss_l1 / hp.nelement()
-        return loss_kl * 0.4 + loss_l2 * 0.6
-
+# Distill Loss
 class DistillLoss(nn.Module):
     def __init__(self, t=16):
         super().__init__()
@@ -208,6 +229,7 @@ class DistillLoss(nn.Module):
         loss = F.kl_div(p_s, p_t, reduction='sum') * (self.t ** 2) / y_s.shape[0]
         return loss
 
+# PKT Loss
 class PKTLoss(nn.Module):
     def __init__(self, eps=0.0000001):
         super().__init__()
@@ -245,6 +267,7 @@ class PKTLoss(nn.Module):
         loss = (target_similarity * torch.log((target_similarity + self.eps) / (model_similarity + self.eps))).sum(dim=1).mean()
         return loss
 
+# Medium Distill MSE Loss
 class MediumDistillMSELoss(nn.Module):
     def __init__(self, EPS=1e-5):
         super().__init__()
