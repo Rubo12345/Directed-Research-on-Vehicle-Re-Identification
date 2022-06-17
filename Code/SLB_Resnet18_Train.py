@@ -19,6 +19,8 @@ from PIL import Image
 import pickle
 from glob import glob
 from itertools import islice
+import sys
+sys.path.append('/home/rutu/WPI/Directed_Research/Directed-Research-on-Vehicle-Re-Identification/')
 from Datasets import veri_train, Rotation
 
 V = veri_train.VeRi()

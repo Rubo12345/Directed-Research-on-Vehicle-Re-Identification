@@ -1,8 +1,5 @@
-
-'''
-    Self Supervised Learning
-    Data -> Data Augumentation -> ResNet18 + 2 Basic Blocks, Complete -> loss -> back prop, optim 
-'''
+import sys
+sys.path.append('/home/rutu/WPI/Directed_Research/Directed-Research-on-Vehicle-Re-Identification/')
 
 from curses import def_shell_mode
 from dataclasses import dataclass
@@ -19,126 +16,20 @@ from PIL import Image
 import pickle
 from glob import glob
 from itertools import islice
-from Datasets import veri_train, Rotation
+from Datasets import veri_train, Rotation, get_data
 import ResNet
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 def directory_paths():
-    V = veri_train.VeRi()
     dataset_dir = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi'
-    train_dir = osp.join(dataset_dir, 'image_train')
-    train_list = None   # I think data gets shuffled using this  # 37778
-    test_dir = osp.join(dataset_dir,'image_test')
-    test_list = None
     Dsl_path = osp.join(dataset_dir,'Dsl/')
     Dsl_test_path = osp.join(dataset_dir, 'Dsl_test/')
-    root_dir = osp.join(dataset_dir,'Dsl')
-    return V, dataset_dir, train_dir, train_list, test_dir, train_list, test_list, Dsl_path, Dsl_test_path, root_dir
+    return dataset_dir,Dsl_path, Dsl_test_path
 
-V, dataset_dir, train_dir, train_list, test_dir, train_list, test_list, Dsl_path, Dsl_test_path, root_dir = directory_paths()
-
-def data_image_labels(train_dir, train_list):
-        train_data = V.process_dir(train_dir,train_list, relabel=True)
-        Train_Images = [];Train_Labels = [];Train_Cams = []
-        for image in range(len(train_data)):
-            Train_Images.append(train_data[image][0])
-            Train_Labels.append(train_data[image][1])
-            Train_Cams.append(train_data[image][2])
-        return Train_Images, Train_Labels, Train_Cams
-
-def image_to_pixel(image):
-    pix_val = list(image.getdata())
-    pix_val_flat = [x for sets in pix_val for x in sets]
-    return pix_val_flat
-
-def input_to_4d_tensor(I):
-    ''' Function converts the image into a tensor as well as size it'''
-    preprocess = torchvision.transforms.Compose([
-    torchvision.transforms.Resize(256),
-    torchvision.transforms.CenterCrop(224),
-    torchvision.transforms.ToTensor(),
-    torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-    ])
-    input_image = Image.open(I)
-    Tensor = preprocess(input_image)
-    Tensor = torch.reshape(Tensor,(1,3,Tensor.shape[1],Tensor.shape[2]))
-    return Tensor
-
-def Data_Rotation(Train_Images,Data_Size):
-    Dsl = []; Dsl_Label = []
-    for i in range(Data_Size):
-        # image = mpimg.imread(Train_Images[i])
-        _4d_tensor = input_to_4d_tensor(Train_Images[i])
-        R_0 = Rotation._apply_2d_rotation(_4d_tensor,0)
-        R_90 = Rotation._apply_2d_rotation(_4d_tensor,90)
-        R_180 = Rotation._apply_2d_rotation(_4d_tensor,180)
-        R_270 = Rotation._apply_2d_rotation(_4d_tensor,270)
-        Dsl.append(R_0)
-        Dsl_Label.append(0)
-        Dsl.append(R_90)
-        Dsl_Label.append(1)
-        Dsl.append(R_180)
-        Dsl_Label.append(2)
-        Dsl.append(R_270)
-        Dsl_Label.append(3)
-    Dsl_Label = torch.Tensor(Dsl_Label)
-    return Dsl, Dsl_Label
-
-def get_data(No_of_Train_Images, No_of_Test_Images):
-    Train_Images, Train_Labels, Train_Cams = data_image_labels(train_dir, train_list)
-    Dsl, Dsl_Label= Data_Rotation(Train_Images,No_of_Train_Images)
-    Test_Images, Test_Labels, Test_Cams = data_image_labels(test_dir,test_list)
-    Dsl_test, Dsl_Label_test = Data_Rotation(Test_Images,No_of_Test_Images)
-    return Dsl, Dsl_Label, Dsl_test, Dsl_Label_test
-
-Dsl, Dsl_Label, Dsl_test, Dsl_Label_test = get_data(1000,280)  #4000,1120
-
-def save_pkl(D,path):
-    with open(path, 'wb') as f:
-        pickle.dump(D, f)
-
-def read_pkl(path):
-    with open(path, 'rb') as f:
-        return pickle.load(f)
-
-def save_pkl_folder(Data, Data_Label, path):
-    for i in range(len(Data)):
-        D = {}
-        D['image'] = Data[i]
-        D['label'] = Data_Label[i]
-        tmp = path + f'{i}.pkl'
-        save_pkl(D,tmp)
-
-save_pkl_folder(Dsl,Dsl_Label,Dsl_path)
-save_pkl_folder(Dsl_test, Dsl_Label_test, Dsl_test_path)
-
-class Veri(Dataset):
-    """dataset."""
-    def __init__(self, root_dir, transform=None):
-        self.files = glob(f'{root_dir}*.pkl')
-        self.transform = transform
-        self.class_names = ['0','1','2','3']  # 0 for '0', 1 for '90', 2 for '180', 3 for '270'
-
-    def __len__(self):
-        return len(self.files)  # partial data, return = 10
-
-    def __getitem__(self, idx):
-        file = self.files[idx]
-        D = read_pkl(file)
-        return {
-            'image': torch.tensor(D['image']),
-            'label': torch.tensor(D['label'], dtype=torch.long),
-            'class_names': self.class_names
-        }
-
-def data_loader(path,batch_size):
-    veri = Veri(path)
-    loader = torch.utils.data.DataLoader(veri, batch_size, shuffle=True)
-    return loader,veri 
-
-veri_loader, veri = data_loader(Dsl_path, 28)
-veri_test_loader, veri_test = data_loader(Dsl_test_path,28)
+dataset_dir,Dsl_path, Dsl_test_path = directory_paths()
+veri_loader, veri = get_data.data_loader(Dsl_path, 28)
+veri_test_loader, veri_test = get_data.data_loader(Dsl_test_path,28)
 class_names = veri.class_names
 
 def show_images(images, labels,preds):
@@ -189,21 +80,21 @@ def Optimizer(optim, param_groups):
         raise ValueError('Unsupported optimizer: {}'.format(optim))
 
 def model():
-    # resnet18_slb = ResNet.resnet18_SLB(4).to(device)
+    resnet18_slb = ResNet.resnet18_SLB(4)
     # resnet50_gb = ResNet.resnet50_bnneck_baseline(4).to(device)
-    resnet18_GFB = ResNet.resnet18_GFB(4)
+    # resnet18_GFB = ResNet.resnet18_GFB(4)
     loss_fn = torch.nn.CrossEntropyLoss()
-    optimizer = Optimizer('adam',resnet18_GFB.parameters())
+    optimizer = Optimizer('adam',resnet18_slb.parameters())
     # optim = torch.optim.Adam(resnet18.parameters(), lr=1e-4, weight_decay=1e-8,betas=(0.9, 0.999))
-    return resnet18_GFB, loss_fn, optimizer
+    return resnet18_slb, loss_fn, optimizer
 
-resnet18_GFB, loss_fn, optimizer = model()
+resnet18_slb, loss_fn, optimizer = model()
 
 def show_preds(): 
     for index, dic in enumerate(veri_loader):
         images = dic['image'].squeeze()
         labels = dic['label'].squeeze()
-        outputs = resnet18_GFB(images)
+        outputs = resnet18_slb(images)
         _, preds = torch.max(outputs, 1)
         show_images(images, labels, preds)
 
@@ -223,7 +114,7 @@ def train_slb(epochs):
         
             optimizer.zero_grad()                 # Zero the parameter gradient
 
-            outputs = resnet18_GFB(train_images)  # Fsl
+            outputs = resnet18_slb(train_images)  # Fsl
             
             loss = loss_fn(outputs, train_labels) # Loss
             
@@ -245,7 +136,7 @@ def train_slb(epochs):
 
                     test_labels = test_dic['label'].squeeze()
             
-                    test_outputs = resnet18_GFB(test_images)
+                    test_outputs = resnet18_slb(test_images)
             
                     loss = loss_fn(test_outputs, test_labels)
 
