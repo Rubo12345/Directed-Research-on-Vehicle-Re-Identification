@@ -2,6 +2,16 @@
 
 Self Supervised Geometric Features Discovery vis Interpretable Attention
 
+The paper cited was:
+```
+@inproceedings{li2021self,
+  title={Self-Supervised Geometric Features Discovery via Interpretable Attention for Vehicle Re-Identification and Beyond},
+  author={Li, Ming and Huang, Xinming and Zhang, Ziming},
+  booktitle={Proceedings of the IEEE/CVF International Conference on Computer Vision},
+  pages={194--204},
+  year={2021}
+}
+```
 Framework Branches:
 1) Global Branch (GB): Encode robust global features codes from an input image. (Architecture - ResNet50)
 2) Self-Supervised Learning Branch (SLB): SLB performs the auxiliary self-supervised representation learning (Architecture - ResNet18)
