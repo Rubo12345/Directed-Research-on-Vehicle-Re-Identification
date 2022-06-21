@@ -20,7 +20,7 @@ from itertools import islice
 from Datasets import veri_train, Rotation, get_data
 import ResNet
 
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+# device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 def directory_paths():
     dataset_dir = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi'
@@ -54,12 +54,12 @@ def Optimizer(optim, param_groups):
         raise ValueError('Unsupported optimizer: {}'.format(optim))
 
 def model():
-    resnet18_slb = ResNet.resnet18_SLB(4).to(device)
-    resnet50_gb = ResNet.resnet50_bnneck_baseline(4).to(device)
+    resnet18_slb = ResNet.resnet18_SLB(4)
+    resnet50_gb = ResNet.resnet50_bnneck_baseline(4)
     resnet18_gfb = ResNet.resnet18_GFB(4)
     loss_fn_1 = torch.nn.CrossEntropyLoss()
     loss_fn_2 = torch.nn.CrossEntropyLoss(label_smoothing=0.1)
-    loss_fn_3 = torch.nn.TripletMarginLoss(margin=0.3)
+    loss_fn_3 = torch.nn.TripletMarginLoss(margin=1,p=2)
     optimizer = Optimizer('adam',resnet18_gfb.parameters())
     return resnet18_slb, resnet50_gb, resnet18_gfb, loss_fn_1, loss_fn_2, loss_fn_3, optimizer
 
@@ -82,7 +82,7 @@ def train_slb(epochs):
             optimizer.zero_grad()                 # Zero the parameter gradient
 
             outputs_slb = resnet18_slb(train_images)
-            outputs_gfb = resnet18_gfb(train_images)  # Fsl
+            outputs_gfb = resnet18_gfb(train_images)  
             outputs_gb = resnet50_gb(train_images)
 
             '''
@@ -96,11 +96,11 @@ def train_slb(epochs):
             Lambda(slb) = 1.0
             '''
 
-            L_gb_tri = loss_fn_3()
-            L_gb_sce = loss_fn_2()
-            L_gfb_tri = loss_fn_3()
-            L_gfb_sce = loss_fn_2()
-            L_slb = loss_fn_1(outputs_gb,train_labels)
+            L_gb_tri = 0.5
+            L_gb_sce = loss_fn_2(outputs_gb[0],train_labels)
+            L_gfb_tri = 0.5
+            L_gfb_sce = loss_fn_2(outputs_gfb,train_labels)
+            L_slb = loss_fn_1(outputs_slb,train_labels)
 
             loss = (0.5 * L_gb_tri) + (0.5*L_gb_sce) + (0.5*L_gfb_tri) + (0.5*L_gfb_sce) + (1*L_slb) 
             
@@ -118,20 +118,26 @@ def train_slb(epochs):
                 
                 correct = 0; n_samples = 0; accuracy = 0
                 
+                resnet18_slb.eval()
+                resnet18_gfb.eval()
+                resnet50_gb.eval()
+
                 for val_step, test_dic in enumerate(veri_test_loader):
             
                     test_images = test_dic['image'].squeeze()
 
                     test_labels = test_dic['label'].squeeze()
-            
-                    test_outputs = resnet18_gfb(test_images)
-            
+                    
+                    test_outputs_slb = resnet18_slb(train_images)
+                    test_outputs_gfb = resnet18_gfb(train_images)  
+                    test_outputs_gb = resnet50_gb(train_images)
+
                     # loss = loss_fn(test_outputs, test_labels)
-                    L_gb_tri = loss_fn_3()
-                    L_gb_sce = loss_fn_2()
-                    L_gfb_tri = loss_fn_3()
-                    L_gfb_sce = loss_fn_2()
-                    L_slb = loss_fn_1(outputs_gb,train_labels)
+                    L_gb_tri = 0.5
+                    L_gb_sce = loss_fn_2(test_outputs_gb[0],train_labels)
+                    L_gfb_tri = 0.5
+                    L_gfb_sce = loss_fn_2(test_outputs_gfb,train_labels)
+                    L_slb = loss_fn_1(test_outputs_slb,train_labels)
 
                     loss = (0.5 * L_gb_tri) + (0.5*L_gb_sce) + (0.5*L_gfb_tri) + (0.5*L_gfb_sce) + (1*L_slb) 
 
@@ -149,8 +155,14 @@ def train_slb(epochs):
                 
                 print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f} %')
 
+                resnet18_slb.train()
+                resnet18_gfb.train()
+                resnet50_gb.train()
+
         train_loss /= (train_step + 1)
 
         print(f'Training Loss: {train_loss:.4f}')
 
     print("Training Finished")
+
+train_slb(2)
