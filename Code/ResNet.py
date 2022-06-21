@@ -554,8 +554,10 @@ class ResNet_GFB(nn.Module):
         
         net = resnet50_bnneck_baseline(4)
         
-        y,RN50_layer2 = net(Initial)[0],net(Initial)[1]
-        
+        y,v,bn_v,layers = net(Initial)
+
+        RN50_layer2 = layers[1]
+
         # print(RN50_layer2.shape)
         
         m = torch.mul(x1,RN50_layer2)    # Element-Wise Multiplication
@@ -585,6 +587,7 @@ class ResNet_GFB(nn.Module):
             bn_feat_global = self.bottleneck_global(global_feat)  # normalize for angular softmax
 
         cls_score_global = self.classifier_global(bn_feat_global)
+        # print(cls_score_global.shape)
         # print(cls_score_global.shape)
         # return cls_score_global, global_feat, None, None  # global feature for triplet loss
         # return cls_score_global, global_feat, bn_feat_global, [f_layer1, f_layer2, f_layer3, f_layer4] # global feature for triplet lossd
@@ -670,7 +673,8 @@ class ResNet50_BNNeck_baseline(nn.Module):
         # return cls_score_global, global_feat, None, None  # global feature for triplet loss
         # return cls_score_global, global_feat, bn_feat_global, [f_layer1, f_layer2, f_layer3, f_layer4] # global feature for triplet lossd
         # return cls_score_global, global_feat, bn_feat_global # global feature for triplet lossds
-        return cls_score_global, f_layer2
+        # return cls_score_global, f_layer2
+        return cls_score_global, global_feat, bn_feat_global, [f_layer1, f_layer2, f_layer3, f_layer4] # global feature for triplet lossd
 
 """
 Residual network configurations:
@@ -807,7 +811,7 @@ def resnet50_fc512(num_classes, loss='softmax', pretrained=True, **kwargs):
         init_pretrained_weights(model, model_urls['resnet50'])
     return model
 
-def resnet50_bnneck_baseline(num_classes, loss={'xent'}, pretrained=True, **kwargs):
+def resnet50_bnneck_baseline(num_classes, loss={'softmax'}, pretrained=True, **kwargs):
     model = ResNet50_BNNeck_baseline(
         num_classes=num_classes,
         loss=loss,
@@ -817,9 +821,10 @@ def resnet50_bnneck_baseline(num_classes, loss={'xent'}, pretrained=True, **kwar
     return model
 
 def test():
-    net = resnet18_GFB(4)
+    net = resnet50_bnneck_baseline(4)
     x = torch.randn(28,3,224,224)
-    y = net(x).to('cuda')
+    # y = net(x).to('cuda')
+    y = net(x)[0].to('cuda') # for resnet50_bnneck_baseline
     print(y.shape)
-test()
+# test()
 

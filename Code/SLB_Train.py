@@ -80,11 +80,11 @@ def Optimizer(optim, param_groups):
         raise ValueError('Unsupported optimizer: {}'.format(optim))
 
 def model():
-    resnet18_slb = ResNet.resnet18_SLB(4)
+    resnet18_slb = ResNet.resnet18_SLB(4).to(device)
     # resnet50_gb = ResNet.resnet50_bnneck_baseline(4).to(device)
     # resnet18_GFB = ResNet.resnet18_GFB(4)
     loss_fn = torch.nn.CrossEntropyLoss()
-    optimizer = Optimizer('adam',resnet18_slb.parameters())
+    optimizer = Optimizer('amsgrad',resnet18_slb.parameters())
     # optim = torch.optim.Adam(resnet18.parameters(), lr=1e-4, weight_decay=1e-8,betas=(0.9, 0.999))
     return resnet18_slb, loss_fn, optimizer
 
@@ -105,12 +105,12 @@ def train_slb(epochs):
     for e in range(0, epochs):
         
         train_loss = 0; val_loss = 0
-        
+
         for train_step, dic in enumerate(veri_loader):
 
-            train_images = dic['image'].squeeze()
+            train_images = dic['image'].squeeze().to(device)
 
-            train_labels = dic['label'].squeeze()
+            train_labels = dic['label'].squeeze().to(device)
         
             optimizer.zero_grad()                 # Zero the parameter gradient
 
@@ -130,32 +130,30 @@ def train_slb(epochs):
                 
                 correct = 0; n_samples = 0; accuracy = 0
                 
-                for val_step, test_dic in enumerate(veri_test_loader):
-            
-                    test_images = test_dic['image'].squeeze()
+                with torch.no_grad():
+                    for val_step, test_dic in enumerate(veri_test_loader):
+                
+                        test_images = test_dic['image'].squeeze().to(device)
 
-                    test_labels = test_dic['label'].squeeze()
-            
-                    test_outputs = resnet18_slb(test_images)
-            
-                    loss = loss_fn(test_outputs, test_labels)
+                        test_labels = test_dic['label'].squeeze().to(device)
+                
+                        test_outputs = resnet18_slb(test_images)
+                
+                        loss = loss_fn(test_outputs, test_labels)
 
-                    val_loss += loss.item()
+                        val_loss += loss.item()
 
-                    _, pred = torch.max(test_outputs,1)
+                        _, pred = torch.max(test_outputs,1)
 
-                    n_samples += test_labels.size(0)
+                        n_samples += test_labels.size(0)
 
-                    correct += (pred == test_labels).sum().item()
+                        correct += (pred == test_labels).sum().item()
 
                 val_loss /= (val_step + 1)      
 
                 accuracy = 100 * correct / n_samples
-                
-                print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f} %')
 
-                # if accuracy >= 95:
-                #     show_preds()
+                print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f} %')
 
         train_loss /= (train_step + 1)
 
