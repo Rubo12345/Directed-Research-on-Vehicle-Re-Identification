@@ -591,7 +591,7 @@ class ResNet_GFB(nn.Module):
         # print(cls_score_global.shape)
         # return cls_score_global, global_feat, None, None  # global feature for triplet loss
         # return cls_score_global, global_feat, bn_feat_global, [f_layer1, f_layer2, f_layer3, f_layer4] # global feature for triplet lossd
-        return cls_score_global        
+        return cls_score_global, global_feat       
 
 class IBN(nn.Module):
     def __init__(self, planes):
@@ -656,6 +656,7 @@ class ResNet50_BNNeck_baseline(nn.Module):
         #     raise IOError'''
 
     def forward(self, x):
+        #feature map
         f_layer1 = self.shallow_branch[:-1](x)
         f_layer2 = self.shallow_branch[-1](f_layer1)
         f_layer3 = self.global_branch[0](f_layer2)
@@ -821,10 +822,10 @@ def resnet50_bnneck_baseline(num_classes, loss={'softmax'}, pretrained=True, **k
     return model
 
 def test():
-    net = resnet50_bnneck_baseline(4)
+    net = resnet18_GFB(4)
     x = torch.randn(28,3,224,224)
     # y = net(x).to('cuda')
-    y = net(x)[0].to('cuda') # for resnet50_bnneck_baseline
+    y = net(x)[0].to('cuda') 
     print(y.shape)
-# test()
+test()
 
