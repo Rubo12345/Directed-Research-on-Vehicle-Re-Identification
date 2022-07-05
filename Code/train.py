@@ -55,8 +55,8 @@ def Optimizer(optim, param_groups):
 
 def model():
     resnet18_slb = ResNet.resnet18_SLB(4)
-    resnet50_gb = ResNet.resnet50_bnneck_baseline(4)
-    resnet18_gfb = ResNet.resnet18_GFB(4)
+    resnet50_gb = ResNet.resnet50_bnneck_baseline(576)
+    resnet18_gfb = ResNet.resnet18_GFB(576)
     loss_fn_1 = torch.nn.CrossEntropyLoss()
     loss_fn_2 = torch.nn.CrossEntropyLoss(label_smoothing=0.1)
     loss_fn_3 = torch.nn.TripletMarginLoss(margin=1,p=2)
@@ -73,6 +73,10 @@ def train_slb(epochs):
         
         train_loss = 0; val_loss = 0
         
+        resnet18_slb.train()
+        resnet18_gfb.train()
+        resnet50_gb.train()
+
         for train_step, dic in enumerate(veri_loader):
 
             train_images = dic['image'].squeeze()
@@ -96,10 +100,10 @@ def train_slb(epochs):
             Lambda(slb) = 1.0
             '''
 
-            L_gb_tri = 0.5
+            L_gb_tri = loss_fn_3(outputs_gb[1],train_labels)
             L_gb_sce = loss_fn_2(outputs_gb[0],train_labels)
-            L_gfb_tri = 0.5
-            L_gfb_sce = loss_fn_2(outputs_gfb,train_labels)
+            L_gfb_tri = loss_fn_3(outputs_gfb[1],train_labels)
+            L_gfb_sce = loss_fn_2(outputs_gfb[0],train_labels)
             L_slb = loss_fn_1(outputs_slb,train_labels)
 
             loss = (0.5 * L_gb_tri) + (0.5*L_gb_sce) + (0.5*L_gfb_tri) + (0.5*L_gfb_sce) + (1*L_slb) 
@@ -122,38 +126,39 @@ def train_slb(epochs):
                 resnet18_gfb.eval()
                 resnet50_gb.eval()
 
-                for val_step, test_dic in enumerate(veri_test_loader):
-            
-                    test_images = test_dic['image'].squeeze()
-
-                    test_labels = test_dic['label'].squeeze()
-                    
-                    test_outputs_slb = resnet18_slb(train_images)
-                    test_outputs_gfb = resnet18_gfb(train_images)  
-                    test_outputs_gb = resnet50_gb(train_images)
-
-                    # loss = loss_fn(test_outputs, test_labels)
-                    L_gb_tri = 0.5
-                    L_gb_sce = loss_fn_2(test_outputs_gb[0],train_labels)
-                    L_gfb_tri = 0.5
-                    L_gfb_sce = loss_fn_2(test_outputs_gfb,train_labels)
-                    L_slb = loss_fn_1(test_outputs_slb,train_labels)
-
-                    loss = (0.5 * L_gb_tri) + (0.5*L_gb_sce) + (0.5*L_gfb_tri) + (0.5*L_gfb_sce) + (1*L_slb) 
-
-                    val_loss += loss.item()
-
-                    _, pred = torch.max(test_outputs,1)
-
-                    n_samples += test_labels.size(0)
-
-                    correct += (pred == test_labels).sum().item()
-
-                val_loss /= (val_step + 1)      
-
-                accuracy = 100 * correct / n_samples
+                with torch.no_grad():
+                    for val_step, test_dic in enumerate(veri_test_loader):
                 
-                print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f} %')
+                        test_images = test_dic['image'].squeeze()
+                        test_labels = test_dic['label'].squeeze()
+                        
+                        test_outputs_slb = resnet18_slb(test_images)
+                        test_outputs_gfb = resnet18_gfb(test_images)  
+                        test_outputs_gb = resnet50_gb(test_images)
+
+                        # loss = loss_fn(test_outputs, test_labels)
+                        L_gb_tri = 0.5
+                        L_gb_sce = loss_fn_2(test_outputs_gb[0],train_labels)
+                        L_gfb_tri = 0.5
+                        L_gfb_sce = loss_fn_2(test_outputs_gfb[0],train_labels)
+                        L_slb = loss_fn_1(test_outputs_slb,train_labels)
+
+                        loss = (0.5 * L_gb_tri) + (0.5*L_gb_sce) + (0.5*L_gfb_tri) + (0.5*L_gfb_sce) + (1*L_slb) 
+
+                        val_loss += loss.item()
+
+                        # _, pred = torch.max(test_outputs,1)
+
+                        n_samples += test_labels.size(0)
+
+                        # correct += (pred == test_labels).sum().item()
+
+                    val_loss /= (val_step + 1)      
+
+                    # accuracy = 100 * correct / n_samples
+                    
+                    # print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f} %')
+                    print(f'Validation Loss: {val_loss:.4f}')
 
                 resnet18_slb.train()
                 resnet18_gfb.train()
