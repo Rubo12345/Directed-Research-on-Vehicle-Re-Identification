@@ -22,7 +22,7 @@ from glob import glob
 from itertools import islice
 from Datasets import veri_train, Rotation, get_new_data
 import ResNet
-
+import xml.etree.ElementTree as ET
 
 # device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -76,6 +76,9 @@ def train_slb(epochs):          #doubt for the training loop
     
     print('Start Training')
     
+    with open('/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/train_label.xml','r') as f:
+        root = ET.fromstring(f.read())
+
     for e in range(0, epochs):
         
         train_loss = 0; val_loss = 0
