@@ -60,12 +60,15 @@ def model():
     loss_fn_1 = torch.nn.CrossEntropyLoss()
     loss_fn_2 = torch.nn.CrossEntropyLoss(label_smoothing=0.1)
     loss_fn_3 = torch.nn.TripletMarginLoss(margin=1,p=2)
-    optimizer = Optimizer('adam',resnet18_gfb.parameters())
+    # optimizer_1 = Optimizer('adam',resnet18_slb.parameters())
+    # optimizer_2 = Optimizer('adam',resnet18_gfb.parameters())
+    # optimizer_3 = Optimizer('adam',resnet50_gb.parameters())
+    optimizer = Optimizer('adam',resnet18_gfb.parameters())          #doubt
     return resnet18_slb, resnet50_gb, resnet18_gfb, loss_fn_1, loss_fn_2, loss_fn_3, optimizer
 
 resnet18_slb, resnet50_gb, resnet18_gfb, loss_fn_1, loss_fn_2, loss_fn_3, optimizer = model()
 
-def train_slb(epochs):
+def train_slb(epochs):          #doubt for the training loop
     
     print('Start Training')
     
@@ -137,11 +140,11 @@ def train_slb(epochs):
                         test_outputs_gb = resnet50_gb(test_images)
 
                         # loss = loss_fn(test_outputs, test_labels)
-                        L_gb_tri = 0.5
-                        L_gb_sce = loss_fn_2(test_outputs_gb[0],train_labels)
-                        L_gfb_tri = 0.5
-                        L_gfb_sce = loss_fn_2(test_outputs_gfb[0],train_labels)
-                        L_slb = loss_fn_1(test_outputs_slb,train_labels)
+                        L_gb_tri = loss_fn_3(test_outputs_gb[1],test_labels)
+                        L_gb_sce = loss_fn_2(test_outputs_gb[0],test_labels)
+                        L_gfb_tri = loss_fn_3(test_outputs_gfb[1],test_labels)
+                        L_gfb_sce = loss_fn_2(test_outputs_gfb[0],test_labels)
+                        L_slb = loss_fn_1(test_outputs_slb,test_labels)
 
                         loss = (0.5 * L_gb_tri) + (0.5*L_gb_sce) + (0.5*L_gfb_tri) + (0.5*L_gfb_sce) + (1*L_slb) 
 
