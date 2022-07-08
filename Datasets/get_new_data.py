@@ -13,7 +13,9 @@ from PIL import Image
 import pickle
 from glob import glob
 from itertools import islice
-import veri_train, Rotation
+# from Datasets.get_data import Dsl_Label, Dsl_Label_test
+import veri_train
+import xml.etree.ElementTree as ET
 
 def directory_paths():
     V = veri_train.VeRi()
@@ -78,11 +80,16 @@ def input_to_4d_tensor(I):
 
 def Data_List(Train_Images,Data_Size):  #for new train
     Dsl = []; Dsl_Label = []
+    with open('/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/train_label.xml','r') as f:
+        root = ET.fromstring(f.read())
     for i in range(Data_Size):
         # image = mpimg.imread(Train_Images[i])
         _4d_tensor = input_to_4d_tensor(Train_Images[i])
         Dsl.append(_4d_tensor)
-    return Dsl
+        Dsl_Label.append(int(root[0][i].attrib['vehicleID']))
+    Dsl_Label = torch.Tensor(Dsl_Label)
+    # print(Dsl_Label)
+    return Dsl,Dsl_Label
 
 '''def get_data(No_of_Train_Images, No_of_Test_Images):
     Train_Images, Train_Labels, Train_Cams = data_image_labels(train_dir, train_list)
@@ -93,12 +100,12 @@ def Data_List(Train_Images,Data_Size):  #for new train
 
 def get_data(No_of_Train_Images, No_of_Test_Images):
     Train_Images, Train_Labels, Train_Cams = data_image_labels(train_dir, train_list)
-    Dsl = Data_List(Train_Images,No_of_Train_Images)
+    Dsl,Dsl_Label = Data_List(Train_Images,No_of_Train_Images)
     Test_Images, Test_Labels, Test_Cams = data_image_labels(test_dir,test_list)
-    Dsl_test = Data_List(Test_Images,No_of_Test_Images)
-    return Dsl, Dsl_test
+    Dsl_test,Dsl_Label_test = Data_List(Test_Images,No_of_Test_Images)
+    return Dsl, Dsl_Label, Dsl_test, Dsl_Label_test
 
-Dsl, Dsl_test = get_data(28,28)  #4000,1120
+Dsl, Dsl_Label, Dsl_test, Dsl_Label_test = get_data(56,56)  #4000,1120
 
 def save_pkl(D,path):
     with open(path, 'wb') as f:
@@ -108,16 +115,16 @@ def read_pkl(path):
     with open(path, 'rb') as f:
         return pickle.load(f)
 
-def save_pkl_folder(Data, path):
+def save_pkl_folder(Data, Data_Label, path):
     for i in range(len(Data)):
         D = {}
         D['image'] = Data[i]
-        # D['label'] = Data_Label[i]
+        D['label'] = Data_Label[i]
         tmp = path + f'{i}.pkl'
         save_pkl(D,tmp)
 
-save_pkl_folder(Dsl,Dsl_path)
-save_pkl_folder(Dsl_test, Dsl_test_path)
+save_pkl_folder(Dsl,Dsl_Label,Dsl_path)
+save_pkl_folder(Dsl_test,Dsl_Label_test, Dsl_test_path)
 
 class Veri(Dataset):
     """dataset."""
@@ -142,3 +149,6 @@ def data_loader(path,batch_size):
     veri = Veri(path)
     loader = torch.utils.data.DataLoader(veri, batch_size, shuffle=True)
     return loader,veri 
+
+# Train_Images, Train_Labels, Train_Cams = data_image_labels(train_dir, train_list)
+# Data_List(Train_Images,100)
