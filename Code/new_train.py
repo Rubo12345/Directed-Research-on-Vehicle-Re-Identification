@@ -3,7 +3,7 @@ import sys
 from syslog import LOG_SYSLOG
 
 from regex import R
-sys.path.append('/home/rutu/WPI/Directed_Research/Directed-Research-on-Vehicle-Re-Identification/')
+sys.path.append('/home/rutu/WPI/Directed_Research/Directed-Research-on-Vehicle-Re-Identification/Datasets/')
 
 from curses import def_shell_mode
 from dataclasses import dataclass
@@ -20,7 +20,7 @@ from PIL import Image
 import pickle
 from glob import glob
 from itertools import islice
-from Datasets import veri_train, Rotation, get_new_data
+import Rotation, get_new_data
 import ResNet
 import xml.etree.ElementTree as ET
 
@@ -64,9 +64,10 @@ def model():
     loss_fn_1 = torch.nn.CrossEntropyLoss()
     loss_fn_2 = torch.nn.CrossEntropyLoss(label_smoothing=0.1)
     loss_fn_3 = torch.nn.TripletMarginLoss(margin=1,p=2)
-    # optimizer_1 = Optimizer('adam',resnet18_slb.parameters())
-    # optimizer_2 = Optimizer('adam',resnet18_gfb.parameters())
-    # optimizer_3 = Optimizer('adam',resnet50_gb.parameters())
+    optimizer_1 = Optimizer('adam',resnet18_slb.parameters())
+    optimizer_2 = Optimizer('adam',resnet18_gfb.parameters())
+    optimizer_3 = Optimizer('adam',resnet50_gb.parameters())
+    # optimizer = optimizer_1 + optimizer_2 + optimizer_3
     optimizer = Optimizer('adam',resnet18_gfb.parameters())          #doubt
     return resnet18_slb, resnet50_gb, resnet18_gfb, loss_fn_1, loss_fn_2, loss_fn_3, optimizer
 
@@ -76,9 +77,6 @@ def train_slb(epochs):          #doubt for the training loop
     
     print('Start Training')
     
-    with open('/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/train_label.xml','r') as f:
-        root = ET.fromstring(f.read())
-
     for e in range(0, epochs):
         
         train_loss = 0; val_loss = 0
@@ -90,9 +88,9 @@ def train_slb(epochs):          #doubt for the training loop
         for train_step, dic in enumerate(veri_loader):
 
             train_images = dic['image'].squeeze()
-
+            # print(train_images.shape)
             train_labels = dic['label'].squeeze()  # use the xml file
-        
+            # print(train_labels.shape)
             optimizer.zero_grad()                 # Zero the parameter gradient
 
             outputs_gfb = resnet18_gfb(train_images)  
@@ -107,7 +105,8 @@ def train_slb(epochs):          #doubt for the training loop
             Lambda(gfb_sce) = 0.5
             Lambda(slb) = 1.0
             '''
-
+            # print(outputs_gb[1].shape)
+            # print(outputs_gfb[1].shape)
             L_gb_tri = loss_fn_3(outputs_gb[1],train_labels)
             L_gb_sce = loss_fn_2(outputs_gb[0],train_labels)
             L_gfb_tri = loss_fn_3(outputs_gfb[1],train_labels)
