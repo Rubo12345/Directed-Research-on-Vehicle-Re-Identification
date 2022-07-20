@@ -58,8 +58,8 @@ def Optimizer(optim, param_groups):
         raise ValueError('Unsupported optimizer: {}'.format(optim))
 
 def model():
-    resnet18_slb = ResNet.resnet18_SLB(4)
-    resnet50_gb = ResNet.resnet50_bnneck_baseline(576)
+    resnet18_slb = ResNet.resnet18_SLB(4)  # Only four class 0,90,180,270
+    resnet50_gb = ResNet.resnet50_bnneck_baseline(576) #    576 Vehicle class
     resnet18_gfb = ResNet.resnet18_GFB(576)
     loss_fn_1 = torch.nn.CrossEntropyLoss()
     loss_fn_2 = torch.nn.CrossEntropyLoss(label_smoothing=0.1)
@@ -95,6 +95,7 @@ def train_slb(epochs):          #doubt for the training loop
 
             outputs_gfb = resnet18_gfb(train_images)  
             outputs_gb = resnet50_gb(train_images)
+
             '''
             Loss: Lambda(gb_tri)*L(gb_tri) + Lambda(gb_sce)*L(gb_sce) + Lambda(gfb_tri)*L(gfb_tri)
                     + Lambda(gfb_sce)*L(gfb_sce) + Lambda(slb)*L(slb)
@@ -105,12 +106,16 @@ def train_slb(epochs):          #doubt for the training loop
             Lambda(gfb_sce) = 0.5
             Lambda(slb) = 1.0
             '''
+
             # print(outputs_gb[1].shape)
             # print(outputs_gfb[1].shape)
+
             L_gb_tri = loss_fn_3(outputs_gb[1],train_labels)
             L_gb_sce = loss_fn_2(outputs_gb[0],train_labels)
             L_gfb_tri = loss_fn_3(outputs_gfb[1],train_labels)
             L_gfb_sce = loss_fn_2(outputs_gfb[0],train_labels)
+
+            # For SLB Training   
 
             train_image = dic['image']
             R_0 = Rotation._apply_2d_rotation(train_image,0)
@@ -124,6 +129,8 @@ def train_slb(epochs):          #doubt for the training loop
             for i in range(len(Rot_Data)):
                 outputs_slb = resnet18_slb(Rot_Data)
                 L_slb += loss_fn_1(outputs_slb,Rot_Data_Label[i])
+
+            # Total Loss
 
             loss = (0.5 * L_gb_tri) + (0.5*L_gb_sce) + (0.5*L_gfb_tri) + (0.5*L_gfb_sce) + (1*L_slb) 
             
