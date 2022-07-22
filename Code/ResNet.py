@@ -556,7 +556,7 @@ class ResNet_GFB(nn.Module):
         
         y,v,bn_v,layers = net(Initial)
 
-        RN50_layer2 = layers[1]
+        RN50_layer2 = layers[1] # layer2
 
         # print(RN50_layer2.shape)
         
@@ -624,7 +624,7 @@ class ResNet50_BNNeck_baseline(nn.Module):
             dropout_p=None,
             **kwargs)
         base.load_param('resnet50')
-        # self.args = kwargs['args']
+                
         self.common_out_dim = 2048
         self.shallow_branch = nn.Sequential(base.conv1, base.bn1, base.relu,base.maxpool, base.layer1, base.layer2)
         self.global_branch = nn.Sequential(base.layer3, base.layer4)

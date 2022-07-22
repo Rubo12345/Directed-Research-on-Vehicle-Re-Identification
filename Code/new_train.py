@@ -1,27 +1,11 @@
-from re import L
 import sys
-from syslog import LOG_SYSLOG
-
-from regex import R
-sys.path.append('/home/rutu/WPI/Directed_Research/Directed-Research-on-Vehicle-Re-Identification/Datasets/')
-
-from curses import def_shell_mode
-from dataclasses import dataclass
-from fileinput import filename
-from multiprocessing import BoundedSemaphore
+sys.path.append('/home/rutu/WPI/Directed_Research/Directed-Research-on-Vehicle-Re-Identification/')
 import numpy as np
 import torch
-import torchvision
-from torch.utils.data import Dataset, DataLoader
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
-import os.path as osp
-from PIL import Image
 import pickle
-from glob import glob
-from itertools import islice
-import Rotation, get_new_data
+from Datasets import Rotation, get_new_data
 import ResNet
+import os.path as osp
 import xml.etree.ElementTree as ET
 
 # device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -195,3 +179,15 @@ def train_slb(epochs):          #doubt for the training loop
     print("Training Finished")
 
 train_slb(2) 
+
+#
+'''
+1) model_REID(5images):
+2) a = ResNet18()
+3) a(input 4)
+4) Loss-SLB
+5) a(input 1) 
+6) Loss - TRI - SCE
+7) b = ResNet50()
+8)  
+'''

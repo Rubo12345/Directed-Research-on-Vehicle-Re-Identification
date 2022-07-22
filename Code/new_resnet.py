@@ -261,7 +261,7 @@ class ResNet_18_Orange(nn.Module):
                  dropout_p=None,
                  **kwargs):
         self.inplanes = 64
-        super(ResNet, self).__init__()
+        super(ResNet_18_Orange, self).__init__()
         self.loss = loss
         self.feature_dim = 512 * block.expansion
 
@@ -310,8 +310,8 @@ class ResNet_18_Orange(nn.Module):
         return x
 
     def forward(self, x):
-        f = self.featuremaps(x)
-        return f
+        x = self.featuremaps(x)
+        return x
 
 class Purple(nn.Module):
     def __init__(self, num_classes, loss, block, layers,
@@ -319,8 +319,8 @@ class Purple(nn.Module):
                  fc_dims=None,
                  dropout_p=None,
                  **kwargs):
-        self.inplanes = 64
-        super(ResNet, self).__init__()
+        self.inplanes = 512             # dimensions wanted
+        super(Purple, self).__init__()
         self.loss = loss
         self.feature_dim = 512 * block.expansion
 
@@ -329,8 +329,8 @@ class Purple(nn.Module):
         self.layer6 = self._make_layer(block, 512, layers[5], stride = 2) # BasicBlock
         self.global_avgpool = nn.AdaptiveAvgPool2d(1)
         self.fc = self._construct_fc_layer(fc_dims, 512 * block.expansion, dropout_p)
-        # self.classifier = nn.Linear(self.feature_dim, num_classes)
-        self.classifier = nn.CosineSimilarity(dim = self.feature_dim, eps = 1e-8)
+        self.classifier = nn.Linear(self.feature_dim, num_classes)
+        # self.classifier = nn.CosineSimilarity(self.feature_dim,eps = 1e-8)
         self._init_params()
 
     def _make_layer(self, block, planes, blocks, stride=1):
@@ -399,18 +399,18 @@ class Purple(nn.Module):
 
     def forward(self,x):
         x = self.layer5(x)   #feature map
+        print(x.shape)
         x = self.layer6(x)   #feature map
+        print(x.shape)
         v = self.global_avgpool(x)
+        print(v.shape)
         v = v.view(v.size(0), -1)
-
+        print(v.shape)
         if self.fc is not None:
             v = self.fc(v)
-
         if not self.training:
             return v
-
         y = self.classifier(v)
-
         if self.loss == 'softmax':
             return y
         elif self.loss == 'triplet':
@@ -435,7 +435,7 @@ class IBN(nn.Module):
         return out
 
 class Blue(nn.Module):
-    def __init__ (self, num_classes=576, loss={'xent'}, pretrained=True, use_bnneck=True,
+    def __init__ (self, num_classes=576, loss={'softmax'}, pretrained=True, use_bnneck=True,
                  trans_classes=79, **kwargs):
         self.inplanes = 64
         super(Blue,self).__init__()
@@ -450,7 +450,7 @@ class Blue(nn.Module):
             dropout_p=None,
             **kwargs)
         base.load_param('resnet50')
- 
+
         self.common_out_dim = 2048
         self.shallow_branch = nn.Sequential(base.conv1, base.bn1, base.relu,base.maxpool, base.layer1, base.layer2)
         self.global_branch = nn.Sequential(base.layer3, base.layer4)
@@ -475,17 +475,17 @@ class Blue(nn.Module):
     def forward(self,x):
         x = self.global_branch[0](x)  #feature map
         x = self.global_branch[1](x)  #feature map
-        global_feat = self.global_avgpool(f)
+        global_feat = self.gap_global(x)
         global_feat = global_feat.view(global_feat.size(0), -1)
         if not self.use_bnneck:
             bn_feat_global = global_feat
         elif self.use_bnneck:
             bn_feat_global = self.bottleneck_global(global_feat)  # normalize for angular softmax
         cls_score_global = self.classifier_global(bn_feat_global)
-        return cls_score_global, global_feat 
+        return cls_score_global, global_feat , bn_feat_global
 
 class ResNet50_Green_Red(nn.Module):
-    def __init__(self, num_classes=576, loss={'xent'}, pretrained=True, use_bnneck=True,
+    def __init__(self, num_classes=576, loss={'softmax'}, pretrained=True, use_bnneck=True,
                  trans_classes=79, **kwargs):
         super().__init__()
         base = ResNet(
@@ -537,10 +537,6 @@ class ResNet50_Green_Red(nn.Module):
             bn_feat_global = self.bottleneck_global(global_feat)  # normalize for angular softmax
 
         cls_score_global = self.classifier_global(bn_feat_global)
-        # return cls_score_global, global_feat, None, None  # global feature for triplet loss
-        # return cls_score_global, global_feat, bn_feat_global, [f_layer1, f_layer2, f_layer3, f_layer4] # global feature for triplet lossd
-        # return cls_score_global, global_feat, bn_feat_global # global feature for triplet lossds
-        # return cls_score_global, f_layer2
         return cls_score_global, global_feat, bn_feat_global, [f_layer1, f_layer2, f_layer3, f_layer4] # global feature for triplet lossd
 
 """
@@ -558,7 +554,7 @@ def orange(num_classes, loss = 'softmax', pretrained = True, **kwargs):
         num_classes=num_classes,
         loss = loss,
         block = BasicBlock,
-        layers = [2,2,2,2],
+        layers = [2,2,2,2,2,2],  #according to the paper
         last_stride = 2,
         fc_dims = None,
         dropout_p = None,
@@ -573,7 +569,7 @@ def purple(num_classes, loss = 'softmax', pretrained = False, **kwargs):
         num_classes=num_classes,
         loss = loss,
         block = BasicBlock,
-        layers = [2,2,2,2],
+        layers = [2,2,2,2,2,2], #according to the paper
         last_stride = 2,
         fc_dims = None,
         dropout_p = None,
@@ -583,36 +579,40 @@ def purple(num_classes, loss = 'softmax', pretrained = False, **kwargs):
         init_pretrained_weights(model,model_urls['resnet18'])
     return model
 
-def blue(num_classes=576, loss={'xent'}, pretrained=True, use_bnneck=True,
-                 trans_classes=79, **kwargs):
+def blue(num_classes = 576, loss={'softmax'}, pretrained=True, use_bnneck=True,
+                **kwargs):
     model = Blue(
         num_classes=num_classes,
         loss=loss,
-        block=BasicBlock,
-        layers=[3,4,6,3],
-        last_stride=2,
-        fc_dims=None,
-        dropout_p=None,
+        # pretrained=pretrained,
+        use_bnneck=use_bnneck,
         **kwargs
     )
     if pretrained:
         init_pretrained_weights(model, model_urls['resnet50'])
     return model
 
-def Green_Red(num_classes, loss={'softmax'}, pretrained=True, **kwargs):
+def Green_Red(num_classes, loss={'softmax'}, pretrained=True,use_bnneck=True, **kwargs):
     model = ResNet50_Green_Red(
         num_classes=num_classes,
         loss=loss,
-        pretrained=pretrained,
+        # pretrained=pretrained,
+        use_bnneck=use_bnneck,
         **kwargs
     )
+    if pretrained:
+        init_pretrained_weights(model, model_urls['resnet50'])
     return model
 
-# def test():
-#     net = resnet18_GFB(4)
-#     x = torch.randn(28,3,224,224)
-#     # y = net(x).to('cuda')
-#     y = net(x)[0].to('cuda') 
-#     print(y.shape)
+def test():
+    net1 = orange(4)
+    # net2 = purple(4)
+    net2 = blue(576)  #classes not a problem for killing
+    # net = Green_Red(576)
+    x = torch.randn(28,3,224,224)
+    x1 = net1(x)
+    # print(x1.shape)
+    x2 = net2(x1) 
+    print(x2[0].shape)
 # test()
 
