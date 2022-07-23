@@ -24,7 +24,7 @@ class Model(nn.Module):
         # self.class_name = class_name
 
     def forward_branch1(self, x):
-        x = self.orange(4)
+        x = self.orange(x)
         out = self.purple(x)
         return out
 
@@ -43,9 +43,9 @@ class Model(nn.Module):
 
     def forward(self, x):
         out1 = Model.forward_branch1(self,x)
-        # out2 = Model.forward_branch2(self,x)
-        # out3 = Model.forward_branch3(self,x)
-        return out1
+        out2 = Model.forward_branch2(self,x)
+        out3 = Model.forward_branch3(self,x)
+        return out1, out2, out3
 
 def the_model():
     model = Model()
@@ -55,5 +55,5 @@ def test():
     x = torch.randn(28,3,224,224)
     net = the_model()
     y = net(x)
-    print(y.shape)
+    print(y[2][0].shape)
 test()

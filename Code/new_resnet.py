@@ -310,8 +310,8 @@ class ResNet_18_Orange(nn.Module):
         return x
 
     def forward(self, x):
-        x = self.featuremaps(x)
-        return x
+        f = self.featuremaps(x)
+        return f
 
 class Purple(nn.Module):
     def __init__(self, num_classes, loss, block, layers,
@@ -399,13 +399,13 @@ class Purple(nn.Module):
 
     def forward(self,x):
         x = self.layer5(x)   #feature map
-        print(x.shape)
+        # print(x.shape)
         x = self.layer6(x)   #feature map
-        print(x.shape)
+        # print(x.shape)
         v = self.global_avgpool(x)
-        print(v.shape)
+        # print(v.shape)
         v = v.view(v.size(0), -1)
-        print(v.shape)
+        # print(v.shape)
         if self.fc is not None:
             v = self.fc(v)
         if not self.training:
@@ -607,12 +607,12 @@ def Green_Red(num_classes, loss={'softmax'}, pretrained=True,use_bnneck=True, **
 def test():
     net1 = orange(4)
     # net2 = purple(4)
-    net2 = blue(576)  #classes not a problem for killing
+    # net2 = blue(576)  #classes not a problem for killing
     # net = Green_Red(576)
     x = torch.randn(28,3,224,224)
     x1 = net1(x)
     # print(x1.shape)
-    x2 = net2(x1) 
-    print(x2[0].shape)
+    # x2 = net2(x1) 
+    print(x1.shape)
 # test()
 
