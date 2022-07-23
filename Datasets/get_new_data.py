@@ -14,6 +14,8 @@ import pickle
 from glob import glob
 from itertools import islice
 # from Datasets.get_data import Dsl_Label, Dsl_Label_test
+import sys
+sys.path.append('/home/rutu/WPI/Directed_Research/Directed-Research-on-Vehicle-Re-Identification/Datasets/')
 import veri_train
 import xml.etree.ElementTree as ET
 
@@ -58,26 +60,6 @@ def input_to_4d_tensor(I):
     Tensor = torch.reshape(Tensor,(1,3,Tensor.shape[1],Tensor.shape[2]))
     return Tensor
 
-'''def Data_Rotation(Train_Images,Data_Size):
-    Dsl = []; Dsl_Label = []
-    for i in range(Data_Size):
-        # image = mpimg.imread(Train_Images[i])
-        _4d_tensor = input_to_4d_tensor(Train_Images[i])
-        R_0 = Rotation._apply_2d_rotation(_4d_tensor,0)
-        R_90 = Rotation._apply_2d_rotation(_4d_tensor,90)
-        R_180 = Rotation._apply_2d_rotation(_4d_tensor,180)
-        R_270 = Rotation._apply_2d_rotation(_4d_tensor,270)
-        Dsl.append(R_0)
-        Dsl_Label.append(0)
-        Dsl.append(R_90)
-        Dsl_Label.append(1)
-        Dsl.append(R_180)
-        Dsl_Label.append(2)
-        Dsl.append(R_270)
-        Dsl_Label.append(3)
-    Dsl_Label = torch.Tensor(Dsl_Label)
-    return Dsl, Dsl_Label'''
-
 def Data_List(Train_Images,Data_Size):  #for new train
     Dsl = []; Dsl_Label = []
     with open('/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/train_label.xml','r') as f:
@@ -90,13 +72,6 @@ def Data_List(Train_Images,Data_Size):  #for new train
     Dsl_Label = torch.Tensor(Dsl_Label)
     # print(Dsl_Label)
     return Dsl,Dsl_Label
-
-'''def get_data(No_of_Train_Images, No_of_Test_Images):
-    Train_Images, Train_Labels, Train_Cams = data_image_labels(train_dir, train_list)
-    Dsl, Dsl_Label= Data_Rotation(Train_Images,No_of_Train_Images)
-    Test_Images, Test_Labels, Test_Cams = data_image_labels(test_dir,test_list)
-    Dsl_test, Dsl_Label_test = Data_Rotation(Test_Images,No_of_Test_Images)
-    return Dsl, Dsl_Label, Dsl_test, Dsl_Label_test'''
 
 def get_data(No_of_Train_Images, No_of_Test_Images):
     Train_Images, Train_Labels, Train_Cams = data_image_labels(train_dir, train_list)
@@ -150,5 +125,3 @@ def data_loader(path,batch_size):
     loader = torch.utils.data.DataLoader(veri, batch_size, shuffle=True)
     return loader,veri 
 
-# Train_Images, Train_Labels, Train_Cams = data_image_labels(train_dir, train_list)
-# Data_List(Train_Images,100)
