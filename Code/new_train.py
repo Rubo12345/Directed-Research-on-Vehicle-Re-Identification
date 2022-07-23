@@ -7,6 +7,7 @@ from Datasets import Rotation, get_new_data
 import ResNet
 import os.path as osp
 import xml.etree.ElementTree as ET
+import model
 
 # device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -41,21 +42,19 @@ def Optimizer(optim, param_groups):
     else:
         raise ValueError('Unsupported optimizer: {}'.format(optim))
 
-def model():
-    resnet18_slb = ResNet.resnet18_SLB(4)  # Only four class 0,90,180,270
-    resnet50_gb = ResNet.resnet50_bnneck_baseline(576) #    576 Vehicle class
-    resnet18_gfb = ResNet.resnet18_GFB(576)
-    loss_fn_1 = torch.nn.CrossEntropyLoss()
-    loss_fn_2 = torch.nn.CrossEntropyLoss(label_smoothing=0.1)
-    loss_fn_3 = torch.nn.TripletMarginLoss(margin=1,p=2)
-    optimizer_1 = Optimizer('adam',resnet18_slb.parameters())
-    optimizer_2 = Optimizer('adam',resnet18_gfb.parameters())
-    optimizer_3 = Optimizer('adam',resnet50_gb.parameters())
-    # optimizer = optimizer_1 + optimizer_2 + optimizer_3
-    optimizer = Optimizer('adam',resnet18_gfb.parameters())          #doubt
-    return resnet18_slb, resnet50_gb, resnet18_gfb, loss_fn_1, loss_fn_2, loss_fn_3, optimizer
+def Model():
+    '''# resnet18_slb = model.the_model()[0]  # Only four class 0,90,180,270
+    # resnet50_gb = model.the_model()[2] #    576 Vehicle class
+    # resnet18_gfb = model.the_model()[1]
+    # the_model = model.the_model()
+    # loss_fn_1 = torch.nn.CrossEntropyLoss()
+    # loss_fn_2 = torch.nn.CrossEntropyLoss(label_smoothing=0.1)
+    # loss_fn_3 = torch.nn.TripletMarginLoss(margin=1,p=2)'''
+    the_model = model.the_model()
+    optimizer = Optimizer('adam',the_model.parameters())          #doubt
+    return the_model, optimizer
 
-resnet18_slb, resnet50_gb, resnet18_gfb, loss_fn_1, loss_fn_2, loss_fn_3, optimizer = model()
+the_model,optimizer = Model()
 
 def train_slb(epochs):          #doubt for the training loop
     
@@ -65,20 +64,15 @@ def train_slb(epochs):          #doubt for the training loop
         
         train_loss = 0; val_loss = 0
         
-        resnet18_slb.train()
-        resnet18_gfb.train()
-        resnet50_gb.train()
+        the_model.train()
 
         for train_step, dic in enumerate(veri_loader):
 
             train_images = dic['image'].squeeze()
-            # print(train_images.shape)
             train_labels = dic['label'].squeeze()  # use the xml file
             # print(train_labels.shape)
             optimizer.zero_grad()                 # Zero the parameter gradient
-
-            outputs_gfb = resnet18_gfb(train_images)  
-            outputs_gb = resnet50_gb(train_images)
+            output = the_model(train_images)
 
             '''
             Loss: Lambda(gb_tri)*L(gb_tri) + Lambda(gb_sce)*L(gb_sce) + Lambda(gfb_tri)*L(gfb_tri)
@@ -91,39 +85,42 @@ def train_slb(epochs):          #doubt for the training loop
             Lambda(slb) = 1.0
             '''
 
-            # print(outputs_gb[1].shape)
-            # print(outputs_gfb[1].shape)
+            slb_output = output[0]
+            L_slb = output[1]
+            gfb_output = output[2]
+            L_gfb = output[3]
+            gb_output = output[4]
+            L_gb = output[5]
 
-            L_gb_tri = loss_fn_3(outputs_gb[1],train_labels)
-            L_gb_sce = loss_fn_2(outputs_gb[0],train_labels)
-            L_gfb_tri = loss_fn_3(outputs_gfb[1],train_labels)
-            L_gfb_sce = loss_fn_2(outputs_gfb[0],train_labels)
+            '''
+                        # L_gb_tri = loss_fn_3(the_model[2][0],train_labels)
+                        # L_gb_sce = loss_fn_2(the_model[2][0],train_labels)
+                        # L_gfb_tri = loss_fn_3(the_model[1][1],train_labels)
+                        # L_gfb_sce = loss_fn_2(the_model[1][0],train_labels)
 
-            # For SLB Training   
+                        # For SLB Training   
 
-            train_image = dic['image']
-            R_0 = Rotation._apply_2d_rotation(train_image,0)
-            R_90 = Rotation._apply_2d_rotation(train_image,90)
-            R_180 = Rotation._apply_2d_rotation(train_image,180)
-            R_270 = Rotation._apply_2d_rotation(train_image,270)
-            Rot_Data = [R_0,R_90,R_180,R_270]
-            Rot_Data_Label = ['0','1','2','3']
-            L_slb = 0
+                        # train_image = dic['image']
+                        # R_0 = Rotation._apply_2d_rotation(train_image,0)
+                        # R_90 = Rotation._apply_2d_rotation(train_image,90)
+                        # R_180 = Rotation._apply_2d_rotation(train_image,180)
+                        # R_270 = Rotation._apply_2d_rotation(train_image,270)
+                        # Rot_Data = [R_0,R_90,R_180,R_270]
+                        # Rot_Data_Label = ['0','1','2','3']
+                        # L_slb = 0
 
-            for i in range(len(Rot_Data)):
-                outputs_slb = resnet18_slb(Rot_Data)
-                L_slb += loss_fn_1(outputs_slb,Rot_Data_Label[i])
+                        # for i in range(len(Rot_Data)):
+                        #     outputs_slb = the_model(Rot_Data[i])
+                        #     L_slb += loss_fn_1(outputs_slb,Rot_Data_Label[i])
 
-            # Total Loss
-
-            loss = (0.5 * L_gb_tri) + (0.5*L_gb_sce) + (0.5*L_gfb_tri) + (0.5*L_gfb_sce) + (1*L_slb) 
+                        # # Total Loss
+            '''
             
+            loss = (0.5 * L_gfb) + (0.5 * L_gb) + L_slb 
             loss.backward()                       # Back Prop
-
             optimizer.step()                      # Adams Optimizer
-
             train_loss += loss.item()             # Train_loss Summation
-
+            
             '''if train_step % 20 == 0:              # print every 20 train_steps
 
             #     print(f'[{e + 1}, {train_step + 1}] loss: {train_loss / 20:.3f}')
@@ -180,14 +177,3 @@ def train_slb(epochs):          #doubt for the training loop
 
 train_slb(2) 
 
-#
-'''
-1) model_REID(5images):
-2) a = ResNet18()
-3) a(input 4)
-4) Loss-SLB
-5) a(input 1) 
-6) Loss - TRI - SCE
-7) b = ResNet50()
-8)  
-'''
