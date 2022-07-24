@@ -85,11 +85,11 @@ def train_slb(epochs):          #doubt for the training loop
             Lambda(slb) = 1.0
             '''
 
-            slb_output = output[0]
+            # slb_output = output[0]
             L_slb = output[1]
-            gfb_output = output[2]
+            # gfb_output = output[2]
             L_gfb = output[3]
-            gb_output = output[4]
+            # gb_output = output[4]
             L_gb = output[5]
 
             '''

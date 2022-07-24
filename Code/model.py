@@ -34,14 +34,15 @@ class Model(nn.Module):
         R_180 = Rotation._apply_2d_rotation(x,180)
         R_270 = Rotation._apply_2d_rotation(x,270)
         Rot_Data = [R_0,R_90,R_180,R_270]
-        Rot_Data_Label = ['0','1','2','3']
+        Rot_Data_Label = [0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3]
         L_slb = 0
 
         for i in range(len(Rot_Data)):
             x = self.orange(Rot_Data[i])
             out = self.purple(x)
-            L_slb += 1
-            # L_slb += self.loss_CE(out, Rot_Data_Label[i]) # Compare the outputs
+            # L_slb += 1
+            Rot_Data_Label = torch.tensor(Rot_Data_Label)
+            L_slb += self.loss_CE(out, Rot_Data_Label) # Compare the outputs
         return out, L_slb
 
     def forward_branch3(self, x):
@@ -79,4 +80,4 @@ def test():
     net = the_model()
     y = net(x)
     print(y[0][0].shape)
-# test()
+test()
