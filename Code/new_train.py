@@ -69,10 +69,11 @@ def train_slb(epochs):          #doubt for the training loop
         for train_step, dic in enumerate(veri_loader):
 
             train_images = dic['image'].squeeze()
-            train_labels = dic['label'].squeeze()  # use the xml file
-            # print(train_labels.shape)
+            train_labels = dic['label'].squeeze()
+            # print("Train_Labels",train_labels)  # use the xml file
+            # print("Size",train_labels.shape)
             optimizer.zero_grad()                 # Zero the parameter gradient
-            output = the_model(train_images)
+            output = the_model(train_images,train_labels)
 
             '''
             Loss: Lambda(gb_tri)*L(gb_tri) + Lambda(gb_sce)*L(gb_sce) + Lambda(gfb_tri)*L(gfb_tri)
@@ -115,7 +116,7 @@ def train_slb(epochs):          #doubt for the training loop
 
                         # # Total Loss
             '''
-            
+
             loss = (0.5 * L_gfb) + (0.5 * L_gb) + L_slb 
             loss.backward()                       # Back Prop
             optimizer.step()                      # Adams Optimizer
