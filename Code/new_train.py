@@ -2,14 +2,12 @@ import sys
 sys.path.append('/home/rutu/WPI/Directed_Research/Directed-Research-on-Vehicle-Re-Identification/')
 import numpy as np
 import torch
-import pickle
-from Datasets import Rotation, get_new_data
-import ResNet
+from Datasets import get_new_data
 import os.path as osp
 import xml.etree.ElementTree as ET
 import model
 
-# device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 def directory_paths():
     dataset_dir = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi'
@@ -20,7 +18,7 @@ def directory_paths():
 dataset_dir,Dsl_path, Dsl_test_path = directory_paths()
 veri_loader, veri = get_new_data.data_loader(Dsl_path, 28)
 veri_test_loader, veri_test = get_new_data.data_loader(Dsl_test_path,28)
-class_names = veri.class_names
+# class_names = veri.class_names
 
 def Optimizer(optim, param_groups):
     if optim == 'adam':
@@ -43,18 +41,13 @@ def Optimizer(optim, param_groups):
         raise ValueError('Unsupported optimizer: {}'.format(optim))
 
 def Model():
-    '''# resnet18_slb = model.the_model()[0]  # Only four class 0,90,180,270
-    # resnet50_gb = model.the_model()[2] #    576 Vehicle class
-    # resnet18_gfb = model.the_model()[1]
-    # the_model = model.the_model()
-    # loss_fn_1 = torch.nn.CrossEntropyLoss()
-    # loss_fn_2 = torch.nn.CrossEntropyLoss(label_smoothing=0.1)
-    # loss_fn_3 = torch.nn.TripletMarginLoss(margin=1,p=2)'''
     the_model = model.the_model()
+    # the_model.to(device)
     optimizer = Optimizer('adam',the_model.parameters())          #doubt
     return the_model, optimizer
 
 the_model,optimizer = Model()
+the_model.to(device)
 
 def train_slb(epochs):          #doubt for the training loop
     
@@ -68,10 +61,8 @@ def train_slb(epochs):          #doubt for the training loop
 
         for train_step, dic in enumerate(veri_loader):
 
-            train_images = dic['image'].squeeze()
-            train_labels = dic['label'].squeeze()
-            # print("Train_Labels",train_labels)  # use the xml file
-            # print("Size",train_labels.shape)
+            train_images = dic['image'].squeeze().to(device)
+            train_labels = dic['label'].squeeze().to(device)
             optimizer.zero_grad()                 # Zero the parameter gradient
             output = the_model(train_images,train_labels)
 
@@ -92,30 +83,6 @@ def train_slb(epochs):          #doubt for the training loop
             L_gfb = output[3]
             # gb_output = output[4]
             L_gb = output[5]
-
-            '''
-                        # L_gb_tri = loss_fn_3(the_model[2][0],train_labels)
-                        # L_gb_sce = loss_fn_2(the_model[2][0],train_labels)
-                        # L_gfb_tri = loss_fn_3(the_model[1][1],train_labels)
-                        # L_gfb_sce = loss_fn_2(the_model[1][0],train_labels)
-
-                        # For SLB Training   
-
-                        # train_image = dic['image']
-                        # R_0 = Rotation._apply_2d_rotation(train_image,0)
-                        # R_90 = Rotation._apply_2d_rotation(train_image,90)
-                        # R_180 = Rotation._apply_2d_rotation(train_image,180)
-                        # R_270 = Rotation._apply_2d_rotation(train_image,270)
-                        # Rot_Data = [R_0,R_90,R_180,R_270]
-                        # Rot_Data_Label = ['0','1','2','3']
-                        # L_slb = 0
-
-                        # for i in range(len(Rot_Data)):
-                        #     outputs_slb = the_model(Rot_Data[i])
-                        #     L_slb += loss_fn_1(outputs_slb,Rot_Data_Label[i])
-
-                        # # Total Loss
-            '''
 
             loss = (0.5 * L_gfb) + (0.5 * L_gb) + L_slb 
             loss.backward()                       # Back Prop

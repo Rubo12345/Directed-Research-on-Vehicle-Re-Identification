@@ -12,9 +12,12 @@ from weight_init import init_pretrained_weights, weights_init_classifier,weights
 from attention import CAM_Module
 import new_resnet
 import sys
+import Losses
 sys.path.append('/home/rutu/WPI/Directed_Research/Directed-Research-on-Vehicle-Re-Identification/')
-from Datasets import Rotation
+from Datasets import Rotation, get_new_data
 
+
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 class Model(nn.Module):
     def __init__(self):
@@ -26,58 +29,79 @@ class Model(nn.Module):
         self.iam = CAM_Module(Module) # use it as self.iam.forward(x)
         self.loss_CE = torch.nn.CrossEntropyLoss()
         self.loss_CSE = torch.nn.CrossEntropyLoss(label_smoothing=0.1)
-        self.loss_TRI = torch.nn.TripletMarginLoss(margin=1,p=2)
+        self.loss_TRI = Losses.triplet_loss(margin=0.3)
+        self.tri_label = torch.zeros(1,575) #training images
 
     def forward_branch1(self, x):
-        R_0 = Rotation._apply_2d_rotation(x,0) #check for input dimensions
+        R_0 = Rotation._apply_2d_rotation(x,0)
+        # R_0.to(device)
         R_90 = Rotation._apply_2d_rotation(x,90)
+        # R_0.to(device)
         R_180 = Rotation._apply_2d_rotation(x,180)
+        # R_0.to(device)
         R_270 = Rotation._apply_2d_rotation(x,270)
+        # R_0.to(device)
         Rot_Data = [R_0,R_90,R_180,R_270]
         Rot_Data_Label = [0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3]
+        Rot_Data_Label = torch.tensor(Rot_Data_Label)
+        # Rot_Data_Label = torch.tensor(Rot_Data_Label).to(device)
+        # Rot_Data_Label.to(device)
         L_slb = 0
 
         for i in range(len(Rot_Data)):
+            torch.cuda.empty_cache()
+            # Rot_Data[i].to(device)
             x = self.orange(Rot_Data[i])
             out = self.purple(x)
-            # L_slb += 1
-            Rot_Data_Label = torch.tensor(Rot_Data_Label)
-            L_slb += self.loss_CE(out, Rot_Data_Label) # Compare the outputs
+            L_slb += self.loss_CE(out, Rot_Data_Label) # correct # Compare the outputs
         return out, L_slb
 
-    def forward_branch3(self, x):
+    def forward_branch3(self, x, y):
         out = self.green_red(x)
-        # L_gb = self.loss_CSE(out,)  # find labels for this
-        L_gb_tri = 0
-        L_gb_sce = 0
+        # self.tri_label[0,y] = 1
+        L_gb_tri = self.loss_TRI(out[1],y)
+        # print(L_gb_tri)
+        L_gb_sce = self.loss_CSE(out[0], y)
+        # print(L_gb_sce)
         L_gb = L_gb_sce + L_gb_tri
         return out, L_gb
 
-    def forward_branch2(self, x):
+    def forward_branch2(self, x,y):
         initial = x
         x = self.orange(x)
         x = self.iam.forward(x)
-        y = Model.forward_branch3(self,initial)[0][3][1]
-        m = torch.mul(x,y)
+        x1 = Model.forward_branch3(self,initial,y)[0][3][1]
+        m = torch.mul(x,x1)
         out = self.blue(m)
-        L_gfb_tri = 0
-        L_gfb_sce = 0
+        # self.tri_label[0,y] = 1
+        L_gfb_tri = self.loss_TRI(out[1],y)
+        # print(L_gfb_tri)
+        L_gfb_sce = self.loss_CSE(out[0], y)
+        # print(L_gfb_sce)
         L_gfb = L_gfb_sce + L_gfb_tri
         return out, L_gfb
 
-    def forward(self, x):
+    def forward(self, x,y):
         out1,L_slb = Model.forward_branch1(self,x)
-        out2, L_gfb = Model.forward_branch2(self,x)
-        out3, L_gb = Model.forward_branch3(self,x)
+        out3, L_gb = Model.forward_branch3(self,x,y)
+        out2, L_gfb = Model.forward_branch2(self,x,y)
         return out1, L_slb, out2, L_gfb, out3, L_gb
 
 def the_model():
     model = Model()
+    # model.to(device)
     return model
 
 def test():
-    x = torch.randn(28,3,224,224)
+    x = torch.randn(28,3,224,224).to(device)
+    Rot_Data_Label = [0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3]
+    y = torch.tensor(Rot_Data_Label).to(device)
     net = the_model()
-    y = net(x)
-    print(y[0][0].shape)
-test()
+    f = net(x,y).to(device)
+    print(f[0].shape)
+    print(f[1])
+    print(f[2][0].shape)
+    print(f[3])
+    print(f[4][0].shape)
+    print(f[5])
+# test()
