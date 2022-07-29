@@ -16,7 +16,6 @@ import Losses
 sys.path.append('/home/rutu/WPI/Directed_Research/Directed-Research-on-Vehicle-Re-Identification/')
 from Datasets import Rotation, get_new_data
 
-
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 class Model(nn.Module):
@@ -31,38 +30,35 @@ class Model(nn.Module):
         self.loss_CSE = torch.nn.CrossEntropyLoss(label_smoothing=0.1)
         self.loss_TRI = Losses.triplet_loss(margin=0.3)
         self.tri_label = torch.zeros(1,575) #training images
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     def forward_branch1(self, x):
         R_0 = Rotation._apply_2d_rotation(x,0)
-        # R_0.to(device)
+        # R_0 = R_0.to(self.device) #Already on device, check new_train
         R_90 = Rotation._apply_2d_rotation(x,90)
-        # R_0.to(device)
+        # R_90 = R_90.to(self.device)
         R_180 = Rotation._apply_2d_rotation(x,180)
-        # R_0.to(device)
+        # R_180 = R_180.to(self.device)
         R_270 = Rotation._apply_2d_rotation(x,270)
-        # R_0.to(device)
+        # R_270 = R_270.to(self.device)
         Rot_Data = [R_0,R_90,R_180,R_270]
         Rot_Data_Label = [0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3]
-        Rot_Data_Label = torch.tensor(Rot_Data_Label)
-        # Rot_Data_Label = torch.tensor(Rot_Data_Label).to(device)
-        # Rot_Data_Label.to(device)
-        L_slb = 0
-
+        Rot_Data_Label = torch.tensor(Rot_Data_Label, dtype = torch.long )
+        L_slb = torch.tensor(0, dtype = torch.long).to(device)
+        # L_slb = L_slb.to(self.device)
         for i in range(len(Rot_Data)):
             torch.cuda.empty_cache()
-            # Rot_Data[i].to(device)
             x = self.orange(Rot_Data[i])
             out = self.purple(x)
-            L_slb += self.loss_CE(out, Rot_Data_Label) # correct # Compare the outputs
+            Rot_Data_Label = Rot_Data_Label.to(self.device)
+            L_slb = L_slb + self.loss_CE(out, Rot_Data_Label) 
         return out, L_slb
 
     def forward_branch3(self, x, y):
         out = self.green_red(x)
         # self.tri_label[0,y] = 1
         L_gb_tri = self.loss_TRI(out[1],y)
-        # print(L_gb_tri)
         L_gb_sce = self.loss_CSE(out[0], y)
-        # print(L_gb_sce)
         L_gb = L_gb_sce + L_gb_tri
         return out, L_gb
 
@@ -75,9 +71,7 @@ class Model(nn.Module):
         out = self.blue(m)
         # self.tri_label[0,y] = 1
         L_gfb_tri = self.loss_TRI(out[1],y)
-        # print(L_gfb_tri)
         L_gfb_sce = self.loss_CSE(out[0], y)
-        # print(L_gfb_sce)
         L_gfb = L_gfb_sce + L_gfb_tri
         return out, L_gfb
 
@@ -89,13 +83,12 @@ class Model(nn.Module):
 
 def the_model():
     model = Model()
-    # model.to(device)
     return model
 
 def test():
-    x = torch.randn(28,3,224,224).to(device)
+    x = torch.randn(28,3,224,224)
     Rot_Data_Label = [0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3]
-    y = torch.tensor(Rot_Data_Label).to(device)
+    y = torch.tensor(Rot_Data_Label)
     net = the_model()
     f = net(x,y).to(device)
     print(f[0].shape)
