@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 def cosine_fully_connected_layer(
     x_in, weight, scale=None, bias=None, normalize_x=True, normalize_w=True
-    ):
+):
     # x_in: a 2D tensor with shape [batch_size x num_features_in]
     # weight: a 2D tensor with shape [num_features_in x num_features_out]
     # scale: (optional) a scalar value
@@ -31,6 +31,24 @@ def cosine_fully_connected_layer(
         x_out = x_out + bias.view(1, -1)
 
     return x_out
+
+def global_pooling(x, pool_type):
+    assert x.dim() == 4
+    if pool_type == "max":
+        return F.max_pool2d(x, (x.size(2), x.size(3)))
+    elif pool_type == "avg":
+        return F.avg_pool2d(x, (x.size(2), x.size(3)))
+    else:
+        raise ValueError("Unknown pooling type.")
+
+class GlobalPooling(nn.Module):
+    def __init__(self, pool_type):
+        super().__init__()
+        assert pool_type == "avg" or pool_type == "max"
+        self.pool_type = pool_type
+
+    def forward(self, x):
+        return global_pooling(x, pool_type=self.pool_type)
 
 class CosineClassifier(nn.Module):
     def __init__(
@@ -75,3 +93,105 @@ class CosineClassifier(nn.Module):
             normalize_w=self.normalize_w,
         )
 
+    def extra_repr(self):
+        s = "num_channels={}, num_classes={}, scale_cls={} (learnable={})".format(
+            self.num_channels,
+            self.num_classes,
+            self.scale_cls.item(),
+            self.scale_cls.requires_grad,
+        )
+        learnable = self.scale_cls.requires_grad
+        s = (
+            f"num_channels={self.num_channels}, "
+            f"num_classes={self.num_classes}, "
+            f"scale_cls={self.scale_cls.item()} (learnable={learnable}), "
+            f"normalize_x={self.normalize_x}, normalize_w={self.normalize_w}"
+        )
+
+        if self.bias is None:
+            s += ", bias=False"
+        return s
+
+class Classifier(nn.Module):
+    def __init__(self, classifier_type='cosine', num_channels=512, num_classes=4, bias=False):
+        super().__init__()
+
+        self.classifier_type = classifier_type
+        self.num_channels = num_channels
+        self.num_classes = num_classes
+        self.global_pooling = False
+
+        if self.classifier_type == "cosine":
+            self.layers = CosineClassifier(
+                num_channels=self.num_channels,
+                num_classes=self.num_classes,
+                scale=10.0,
+                learn_scale=True,
+                bias=bias,
+            )
+
+        elif self.classifier_type == "linear":
+            self.layers = nn.Linear(self.num_channels, self.num_classes, bias=bias)
+            if bias:
+                self.layers.bias.data.zero_()
+
+            fout = self.layers.out_features
+            self.layers.weight.data.normal_(0.0, np.sqrt(2.0 / fout))
+
+        elif self.classifier_type == "mlp_linear":
+            mlp_channels = [int(num_channels / 2), int(num_channels / 4)]
+            num_mlp_channels = len(mlp_channels)
+            mlp_channels = [self.num_channels,] + mlp_channels
+            self.layers = nn.Sequential()
+
+            pre_act_relu = False
+            if pre_act_relu:
+                self.layers.add_module("pre_act_relu", nn.ReLU(inplace=False))
+
+            for i in range(num_mlp_channels):
+                self.layers.add_module(
+                    f"fc_{i}", nn.Linear(mlp_channels[i], mlp_channels[i + 1], bias=False),
+                )
+                self.layers.add_module(f"bn_{i}", nn.BatchNorm1d(mlp_channels[i + 1]))
+                self.layers.add_module(f"relu_{i}", nn.ReLU(inplace=True))
+
+            fc_prediction = nn.Linear(mlp_channels[-1], self.num_classes)
+            fc_prediction.bias.data.zero_()
+            self.layers.add_module("fc_prediction", fc_prediction)
+        else:
+            raise ValueError(
+                "Not implemented / recognized classifier type {}".format(self.classifier_type)
+            )
+
+    def flatten(self):
+        return (
+            self.classifier_type == "linear"
+            or self.classifier_type == "cosine"
+            or self.classifier_type == "mlp_linear"
+        )
+
+    def forward(self, features):
+        if self.global_pooling:
+            features = global_pooling(features, pool_type="avg")
+
+        if features.dim() > 2 and self.flatten():
+            features = features.view(features.size(0), -1)
+
+        scores = self.layers(features)
+        return scores
+
+def classifier(classifier_type='cosine', num_channels=512, num_classes=4, bias=False):
+    classifier = Classifier(
+        classifier_type = classifier_type,
+        num_channels = num_channels,
+        num_classes = num_classes,
+        bias = bias
+    )
+    return classifier
+
+def test():
+    c = classifier('cosine',512,4)
+    x = torch.randn(28,512)
+    x1 = c(x)
+    print(x1.shape)
+# test()
