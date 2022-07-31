@@ -42,12 +42,11 @@ def Optimizer(optim, param_groups):
 
 def Model():
     the_model = model.the_model()
-    # the_model.to(device)
     optimizer = Optimizer('adam',the_model.parameters())          #doubt
     return the_model, optimizer
 
 the_model,optimizer = Model()
-the_model.to(device)
+# the_model.to(device)
 
 def train_slb(epochs):          #doubt for the training loop
     
@@ -61,8 +60,8 @@ def train_slb(epochs):          #doubt for the training loop
 
         for train_step, dic in enumerate(veri_loader):
 
-            train_images = dic['image'].squeeze().to(device)
-            train_labels = dic['label'].squeeze().to(device)
+            train_images = dic['image'].squeeze()
+            train_labels = dic['label'].squeeze()
             optimizer.zero_grad()                 # Zero the parameter gradient
             output = the_model(train_images,train_labels)
 
@@ -86,53 +85,46 @@ def train_slb(epochs):          #doubt for the training loop
             optimizer.step()                      # Adams Optimizer
             train_loss += loss.item()             # Train_loss Summation
             
-            '''if train_step % 20 == 0:              # print every 20 train_steps
+            if train_step % 20 == 0:              # print every 20 train_steps
 
-            #     print(f'[{e + 1}, {train_step + 1}] loss: {train_loss / 20:.3f}')
+                print(f'[{e + 1}, {train_step + 1}] loss: {train_loss / 20:.3f}')
                 
-            #     correct = 0; n_samples = 0; accuracy = 0
+                correct = 0; n_samples = 0; accuracy = 0
                 
-            #     resnet18_slb.eval()
-            #     resnet18_gfb.eval()
-            #     resnet50_gb.eval()
+                the_model.eval()
 
-            #     with torch.no_grad():
-            #         for val_step, test_dic in enumerate(veri_test_loader):
+                with torch.no_grad():
+                    for val_step, test_dic in enumerate(veri_test_loader):
                 
-            #             test_images = test_dic['image'].squeeze()
-            #             test_labels = test_dic['label'].squeeze()
+                        test_images = test_dic['image'].squeeze()
+                        test_labels = test_dic['label'].squeeze()
                         
-            #             test_outputs_slb = resnet18_slb(test_images)
-            #             test_outputs_gfb = resnet18_gfb(test_images)  
-            #             test_outputs_gb = resnet50_gb(test_images)
+                        output = the_model(test_images,test_labels)
 
-            #             # loss = loss_fn(test_outputs, test_labels)
-            #             L_gb_tri = loss_fn_3(test_outputs_gb[1],test_labels)
-            #             L_gb_sce = loss_fn_2(test_outputs_gb[0],test_labels)
-            #             L_gfb_tri = loss_fn_3(test_outputs_gfb[1],test_labels)
-            #             L_gfb_sce = loss_fn_2(test_outputs_gfb[0],test_labels)
-            #             L_slb = loss_fn_1(test_outputs_slb,test_labels)
+                        # loss = loss_fn(test_outputs, test_labels)
+                        L_slb = output[1]
+                        L_gfb = output[3]
+                        L_gb = output[5]
 
-            #             loss = (0.5 * L_gb_tri) + (0.5*L_gb_sce) + (0.5*L_gfb_tri) + (0.5*L_gfb_sce) + (1*L_slb) 
+                        loss = (0.5 * L_gfb) + (0.5 * L_gb) + L_slb 
 
-            #             val_loss += loss.item()
+                        val_loss = val_loss + loss.item()
 
-            #             # _, pred = torch.max(test_outputs,1)
+                        # _, pred = torch.max(test_outputs,1)
 
-            #             n_samples += test_labels.size(0)
+                        n_samples += test_labels.size(0)
 
-            #             # correct += (pred == test_labels).sum().item()
+                        # correct += (pred == test_labels).sum().item()
 
-            #         val_loss /= (val_step + 1)      
+                    val_loss /= (val_step + 1)      
 
-            #         # accuracy = 100 * correct / n_samples
+                    # accuracy = 100 * correct / n_samples
                     
-            #         # print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f} %')
-            #         print(f'Validation Loss: {val_loss:.4f}')
+                    # print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f} %')
 
-            #     resnet18_slb.train()
-            #     resnet18_gfb.train()
-            #     resnet50_gb.train()'''
+                    print(f'Validation Loss: {val_loss:.4f}')
+
+                the_model.train()
 
         train_loss /= (train_step + 1)
 
