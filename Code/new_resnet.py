@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 from __future__ import division
+from cupshelpers import Device
 from sklearn.metrics import log_loss
 
 __all__ = ['resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152', 'resnet50_fc512']
@@ -12,8 +13,7 @@ import torchvision
 import torch.utils.model_zoo as model_zoo
 from weight_init import init_pretrained_weights, weights_init_classifier,weights_init_kaiming
 from attention import CAM_Module
-import logging
-import math
+import classifier
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -313,10 +313,9 @@ class Purple(nn.Module):
         self.layer6 = self._make_layer(block, 512, layers[5], stride = 2) # BasicBlock
         self.global_avgpool = nn.AdaptiveAvgPool2d(1)
         self.fc = self._construct_fc_layer(fc_dims, 512 * block.expansion, dropout_p)
-        self.classifier_Linear = nn.Linear(self.feature_dim, num_classes,bias = False)
-        self.classifier_cosine = nn.CosineSimilarity(self.feature_dim,eps = 1e-8)
-        self.classifier = nn.Linear(self.feature_dim, num_classes)
+        self.classifier = classifier.classifier('cosine',512,4)
         self._init_params()
+
 
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
@@ -383,29 +382,15 @@ class Purple(nn.Module):
             self.state_dict()[i].copy_(param_dict[i])
 
     def forward(self,x):
-        x = self.layer5(x)   #feature map
-      
-        x = self.layer6(x)   #feature map
-
+        x = self.layer5(x)
+        x = self.layer6(x)
         v = self.global_avgpool(x)
-        # print(v.shape)
         v = v.view(v.size(0), -1)
-        # print(v.shape)
         if self.fc is not None:
             v = self.fc(v)
         if not self.training:
             return v
-
-        # L1 = self.classifier_Linear(v)
-        # norm_L1 = L1 / torch.norm(L1,p=2,dim=1,keepdim=True)
-
-        # L2 = self.classifier_Linear.weight.T
-        # norm_L2 = L2 / torch.norm(L2,p=2,dim=0,keepdim=True)
-        # print(norm_L2.shape)
-
         y = self.classifier(v)
-        # y = nn.Softmax(y)
-        # print(y.shape)
         if self.loss == 'softmax':
             return y
         elif self.loss == 'triplet':
@@ -602,12 +587,9 @@ def Green_Red(num_classes, loss={'softmax'}, pretrained=True,use_bnneck=True, **
 def test():
     net1 = orange(4)
     net2 = purple(4)
-    # net2 = blue(576)  #classes not a problem for killing
-    # net = Green_Red(576)
     x = torch.randn(28,3,224,224)
-    x1 = net1(x).to(device)
-    # print(x1.shape)
-    x2 = net2(x1).to(device)
+    x1 = net1(x)
+    x2 = net2(x1)
     print(x2.shape)
 # test()
 

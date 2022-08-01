@@ -34,23 +34,19 @@ class Model(nn.Module):
 
     def forward_branch1(self, x):
         R_0 = Rotation._apply_2d_rotation(x,0)
-        # R_0 = R_0.to(self.device) #Already on device, check new_train
         R_90 = Rotation._apply_2d_rotation(x,90)
-        # R_90 = R_90.to(self.device)
         R_180 = Rotation._apply_2d_rotation(x,180)
-        # R_180 = R_180.to(self.device)
         R_270 = Rotation._apply_2d_rotation(x,270)
-        # R_270 = R_270.to(self.device)
         Rot_Data = [R_0,R_90,R_180,R_270]
         Rot_Data_Label = [0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3]
         Rot_Data_Label = torch.tensor(Rot_Data_Label, dtype = torch.long )
-        L_slb = torch.tensor(0, dtype = torch.long).to(device)
-        # L_slb = L_slb.to(self.device)
+        # Rot_Data_Label = Rot_Data_Label.to(self.device)
+        # L_slb = torch.tensor(0, dtype = torch.long).to(self.device)
+        L_slb = torch.tensor(0)
         for i in range(len(Rot_Data)):
             torch.cuda.empty_cache()
             x = self.orange(Rot_Data[i])
             out = self.purple(x)
-            Rot_Data_Label = Rot_Data_Label.to(self.device)
             L_slb = L_slb + self.loss_CE(out, Rot_Data_Label) 
         return out, L_slb
 
@@ -86,11 +82,12 @@ def the_model():
     return model
 
 def test():
-    x = torch.randn(28,3,224,224)
+    x = torch.randn(28,3,224,224).to(device)
     Rot_Data_Label = [0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3]
-    y = torch.tensor(Rot_Data_Label)
+    y = torch.tensor(Rot_Data_Label).to(device)
     net = the_model()
-    f = net(x,y).to(device)
+    net = net.to(device)
+    f = net(x,y)
     print(f[0].shape)
     print(f[1])
     print(f[2][0].shape)

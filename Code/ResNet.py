@@ -546,7 +546,7 @@ class ResNet_GFB(nn.Module):
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
-        print(x.shape)
+        # print(x.shape)
 
         x1 = CAM_Module(Module).forward(x)
         
@@ -825,7 +825,7 @@ def test():
     net = resnet18_GFB(4)
     x = torch.randn(28,3,224,224)
     # y = net(x).to('cuda')
-    y = net(x)[0].to('cuda') 
+    y = net(x)[0].to(device) 
     print(y.shape)
-test()
+# test()
 
