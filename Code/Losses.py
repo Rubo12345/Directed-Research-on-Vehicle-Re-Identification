@@ -300,8 +300,11 @@ class MediumDistillMSELoss(nn.Module):
             # loss = loss + torch.abs(feats_t_norm[i] - feats_s[i]).mean() * weights[i]
         return loss
 
-       
-
+def triplet_loss(margin):
+    loss = TripletLoss(
+        margin=margin
+    )   
+    return loss
 
 
 
