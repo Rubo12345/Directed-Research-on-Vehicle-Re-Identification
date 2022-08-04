@@ -118,7 +118,8 @@ class TripletLoss(nn.Module):
         dist_ap, dist_an = [], []
         for i in range(n):
             dist_ap.append(dist[i][mask[i]].max().unsqueeze(0))
-            dist_an.append(dist[i][mask[i] == 0].min().unsqueeze(0))
+            dist_an.append(dist[i][mask[i]].min().unsqueeze(0))
+            # dist_an.append(dist[i][mask[i] == 0].min().unsqueeze(0)) #Make sure to check this
         dist_ap = torch.cat(dist_ap)
         dist_an = torch.cat(dist_an)
 

@@ -85,7 +85,7 @@ def train_slb(epochs):          #doubt for the training loop
             optimizer.step()                      # Adams Optimizer
             train_loss += loss.item()             # Train_loss Summation
             
-            if train_step % 20 == 0:              # print every 20 train_steps
+            ''' if train_step % 20 == 0:              # print every 20 train_steps
 
                 print(f'[{e + 1}, {train_step + 1}] loss: {train_loss / 20:.3f}')
                 
@@ -101,31 +101,31 @@ def train_slb(epochs):          #doubt for the training loop
                         
                         output = the_model(test_images,test_labels)
 
-                        # loss = loss_fn(test_outputs, test_labels)
                         L_slb = output[1]
                         L_gfb = output[3]
                         L_gb = output[5]
 
                         loss = (0.5 * L_gfb) + (0.5 * L_gb) + L_slb 
 
-                        val_loss = val_loss + loss.item()
+                        val_loss = val_loss + loss
 
-                        # _, pred = torch.max(test_outputs,1)
+                        _, pred = torch.max(output[2][0],1)
 
                         n_samples += test_labels.size(0)
 
-                        # correct += (pred == test_labels).sum().item()
+                        correct += (pred == test_labels).sum().item()
 
                     val_loss /= (val_step + 1)      
 
-                    # accuracy = 100 * correct / n_samples
+                    accuracy = 100 * correct / n_samples
                     
-                    # print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f} %')
+                    print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f} %')
 
-                    print(f'Validation Loss: {val_loss:.4f}')
+                    # print(f'Validation Loss: {val_loss:.4f}')
 
                 the_model.train()
-
+'''
+        
         train_loss /= (train_step + 1)
 
         print(f'Training Loss: {train_loss:.4f}')

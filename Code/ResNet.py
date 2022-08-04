@@ -637,7 +637,6 @@ class ResNet50_BNNeck_baseline(nn.Module):
             self.bottleneck_global = nn.BatchNorm1d(self.common_out_dim)
             self.bottleneck_global.bias.requires_grad_(False)  # no shift
             self.classifier_global = nn.Linear(self.common_out_dim, num_classes, bias=False)
-
             self.bottleneck_global.apply(weights_init_kaiming)
             self.classifier_global.apply(weights_init_classifier)
 
@@ -671,10 +670,6 @@ class ResNet50_BNNeck_baseline(nn.Module):
             bn_feat_global = self.bottleneck_global(global_feat)  # normalize for angular softmax
 
         cls_score_global = self.classifier_global(bn_feat_global)
-        # return cls_score_global, global_feat, None, None  # global feature for triplet loss
-        # return cls_score_global, global_feat, bn_feat_global, [f_layer1, f_layer2, f_layer3, f_layer4] # global feature for triplet lossd
-        # return cls_score_global, global_feat, bn_feat_global # global feature for triplet lossds
-        # return cls_score_global, f_layer2
         return cls_score_global, global_feat, bn_feat_global, [f_layer1, f_layer2, f_layer3, f_layer4] # global feature for triplet lossd
 
 """

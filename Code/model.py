@@ -22,9 +22,9 @@ class Model(nn.Module):
     def __init__(self):
         super(Model,self).__init__()
         self.orange = new_resnet.orange(4)
-        self.green_red = new_resnet.Green_Red(576)
+        self.green_red = new_resnet.Green_Red(575)
         self.purple = new_resnet.purple(4)
-        self.blue = new_resnet.blue(576)
+        self.blue = new_resnet.blue(575)
         self.iam = CAM_Module(Module) # use it as self.iam.forward(x)
         self.loss_CE = torch.nn.CrossEntropyLoss()
         self.loss_CSE = torch.nn.CrossEntropyLoss(label_smoothing=0.1)
@@ -82,11 +82,11 @@ def the_model():
     return model
 
 def test():
-    x = torch.randn(28,3,224,224).to(device)
+    x = torch.randn(28,3,224,224)
     Rot_Data_Label = [0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3]
-    y = torch.tensor(Rot_Data_Label).to(device)
+    y = torch.tensor(Rot_Data_Label)
     net = the_model()
-    net = net.to(device)
+    net = net
     f = net(x,y)
     print(f[0].shape)
     print(f[1])
