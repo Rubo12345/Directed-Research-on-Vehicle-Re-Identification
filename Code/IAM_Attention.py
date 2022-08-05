@@ -100,20 +100,37 @@ def nms_pytorch(P : torch.tensor ,thresh_iou : float):
     return keep
 
 a = torch.randn((28,512,28,28),dtype = torch.float32)
+identity = a
+
 pd = (2,2,2,2)
 a = torch.nn.functional.pad(a, pd, mode='constant', value=0)
-# print(a)
+print(a)
 m = nn.Softmax(dim = -1)
 for i in range(28):
-    for j in range(512):
-        for k in range(28):
-            for l in range(28):
-                input = a[i,j,k:k+5,l:l+5]
+    for c in range(512):
+        for h in range(28):
+            for w in range(28):
+                input = a[i,c,h:h+5,w:w+5]
                 output = m(input)
-                a[i,j,k:k+5,l:l+5] = output
+                a[i,c,h:h+5,w:w+5] = output
 print(a) #crop the image.
 
-a = torch.tensor(([[[[1,1,1,1],
+a = identity
+
+Lnuv = torch.tensor(-2)
+for i in range(28):
+    for h in range(28):
+        for w in range(28):
+            m = a[i,0:,h,w]
+            _,max_ = torch.max(m,0)
+            Lnuv = a[i,max_,h,w]
+            for c in range(512):
+                Lcuv = a[i,c,h,w]
+                G = Lcuv/Lnuv
+                a[i,c,h,w] = G
+print(a.shape)
+
+'''a = torch.tensor(([[[[1,1,1,1],
 				    [2,2,2,2],
                     [3,3,3,3],
                     [4,4,4,4]],
@@ -130,32 +147,5 @@ a = torch.tensor(([[[[1,1,1,1],
                     [3,3,3,3],
                     [5,5,5,5]]]]),dtype = torch.float32)
 
+print(a[0,0,3,3])
 '''
-# z = torch.randn(28,512,28,28)
-# print(z.shape)
-# b,c,h,w = a.size()
-# print(a.shape)
-# pd = (2,2,2,2)
-# a = torch.nn.functional.pad(a, pd, mode='constant', value=0)
-# print(a.shape)
-# print(a[0,0,0:5,0:5])
-# print(a)
-
-# m = nn.Softmax(dim = 1)
-# input = a[0,0,1:3,1:3]
-# print(input)
-# output = m(input)
-# print(output)
-# a[0,0,0:2,1:3] = output
-# print(a)
-
-# m = nn.Softmax(dim=1)
-# input = torch.randn((4,4),dtype=torch.int64)
-
-# # input = B
-# # print(B.dtype)
-# print(input.dtype)
-# output = m(input)
-# print(output)
-# input = a[i,j,k:k+5,L:L+5]
-# print(a)'''
