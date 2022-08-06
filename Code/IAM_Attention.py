@@ -3,6 +3,8 @@ import numpy as np
 import torch
 from torch import nn
 from torch.nn import Module, Conv2d, Parameter, Softmax
+import torchvision.transforms as transforms
+from PIL import Image
 x = torch.randn(28,512,28,28)
 
 def nms_pytorch(P : torch.tensor ,thresh_iou : float):
@@ -104,7 +106,6 @@ identity = a
 
 pd = (2,2,2,2)
 a = torch.nn.functional.pad(a, pd, mode='constant', value=0)
-print(a)
 m = nn.Softmax(dim = -1)
 for i in range(28):
     for c in range(512):
@@ -113,7 +114,8 @@ for i in range(28):
                 input = a[i,c,h:h+5,w:w+5]
                 output = m(input)
                 a[i,c,h:h+5,w:w+5] = output
-print(a) #crop the image.
+transform = transforms.CenterCrop((28,28))
+M = transform(a) # We got the M
 
 a = identity
 
@@ -128,7 +130,13 @@ for i in range(28):
                 Lcuv = a[i,c,h,w]
                 G = Lcuv/Lnuv
                 a[i,c,h,w] = G
-print(a.shape)
+G = a   # We got the G
+
+Q = torch.multiply(M,G)
+print(Q.shape)
+
+Q_Dash = torch.max(Q[0:,0:,0:,0:],1)
+print(Q_Dash.values.shape)
 
 '''a = torch.tensor(([[[[1,1,1,1],
 				    [2,2,2,2],
