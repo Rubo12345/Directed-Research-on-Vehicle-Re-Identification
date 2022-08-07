@@ -102,58 +102,39 @@ def nms_pytorch(P : torch.tensor ,thresh_iou : float):
     return keep
 
 a = torch.randn((28,512,28,28),dtype = torch.float32)
-identity = a
 
-pd = (2,2,2,2)
-a = torch.nn.functional.pad(a, pd, mode='constant', value=0)
-m = nn.Softmax(dim = -1)
-for i in range(28):
-    for c in range(512):
+def IAM_Attention(a):
+    identity = a
+    pd = (2,2,2,2)
+    a = torch.nn.functional.pad(a, pd, mode='constant', value=0)
+    m = nn.Softmax(dim = -1)
+    for i in range(28):
+        for c in range(512):
+            for h in range(28):
+                for w in range(28):
+                    input = a[i,c,h:h+5,w:w+5]
+                    output = m(input)
+                    a[i,c,h:h+5,w:w+5] = output
+    transform = transforms.CenterCrop((28,28))
+    M = transform(a) # We got the M
+
+    a = identity
+
+    Lnuv = torch.tensor(-2)
+    for i in range(28):
         for h in range(28):
             for w in range(28):
-                input = a[i,c,h:h+5,w:w+5]
-                output = m(input)
-                a[i,c,h:h+5,w:w+5] = output
-transform = transforms.CenterCrop((28,28))
-M = transform(a) # We got the M
+                m = a[i,0:,h,w]
+                _,max_ = torch.max(m,0)
+                Lnuv = a[i,max_,h,w]
+                for c in range(512):
+                    Lcuv = a[i,c,h,w]
+                    G = Lcuv/Lnuv
+                    a[i,c,h,w] = G
+    G = a   # We got the G
 
-a = identity
+    Q = torch.multiply(M,G)
+    Q_Dash = torch.max(Q[0:,0:,0:,0:],1)
+    return Q_Dash.values.shape
 
-Lnuv = torch.tensor(-2)
-for i in range(28):
-    for h in range(28):
-        for w in range(28):
-            m = a[i,0:,h,w]
-            _,max_ = torch.max(m,0)
-            Lnuv = a[i,max_,h,w]
-            for c in range(512):
-                Lcuv = a[i,c,h,w]
-                G = Lcuv/Lnuv
-                a[i,c,h,w] = G
-G = a   # We got the G
-
-Q = torch.multiply(M,G)
-print(Q.shape)
-
-Q_Dash = torch.max(Q[0:,0:,0:,0:],1)
-print(Q_Dash.values.shape)
-
-'''a = torch.tensor(([[[[1,1,1,1],
-				    [2,2,2,2],
-                    [3,3,3,3],
-                    [4,4,4,4]],
-				   [[5,5,5,5],
-				    [6,6,6,6],
-                    [7,7,7,7],
-                    [8,8,8,8]]],
-                  [[[9,9,9,9],
-				    [6,6,6,6],
-                    [4,4,4,4],
-                    [1,1,1,1]],
-				   [[7,7,7,7],
-				    [8,8,8,8],
-                    [3,3,3,3],
-                    [5,5,5,5]]]]),dtype = torch.float32)
-
-print(a[0,0,3,3])
-'''
+# print(IAM_Attention(a))
