@@ -13,6 +13,7 @@ from attention import CAM_Module
 import new_resnet
 import sys
 import Losses
+import IAM_Attention
 sys.path.append('/home/rutu/WPI/Directed_Research/Directed-Research-on-Vehicle-Re-Identification/')
 from Datasets import Rotation, get_new_data
 
@@ -25,7 +26,8 @@ class Model(nn.Module):
         self.green_red = new_resnet.Green_Red(575)
         self.purple = new_resnet.purple(4)
         self.blue = new_resnet.blue(575)
-        self.iam = CAM_Module(Module) # use it as self.iam.forward(x)
+        # self.iam = CAM_Module(Module) # use it as self.iam.forward(x)
+        self.iam = IAM_Attention
         self.loss_CE = torch.nn.CrossEntropyLoss()
         self.loss_CSE = torch.nn.CrossEntropyLoss(label_smoothing=0.1)
         self.loss_TRI = Losses.triplet_loss(margin=0.3)
@@ -61,7 +63,8 @@ class Model(nn.Module):
     def forward_branch2(self, x,y):
         initial = x
         x = self.orange(x)
-        x = self.iam.forward(x)
+        # x = self.iam.forward(x)
+        x = self.iam.IAM_Attention(x)
         x1 = Model.forward_branch3(self,initial,y)[0][3][1]
         m = torch.mul(x,x1)
         out = self.blue(m)
@@ -94,4 +97,4 @@ def test():
     print(f[3])
     print(f[4][0].shape)
     print(f[5])
-# test()
+test()
