@@ -68,9 +68,6 @@ def Data_List_Train(Train_Images,Data_Size):  #for new train
     Classes = classes.classes
     Classes_index = classes.class_index
 
-    print(Classes)
-    print(Classes_index)
-
     for i in range(Data_Size):
         _4d_tensor = input_to_4d_tensor(Train_Images[i])
         Dsl.append(_4d_tensor)
@@ -106,7 +103,7 @@ def get_data(No_of_Train_Images, No_of_Test_Images):
     Dsl_test,Dsl_Label_test = Data_List_Test(Test_Images,No_of_Test_Images)
     return Dsl, Dsl_Label, Dsl_test, Dsl_Label_test
 
-Dsl, Dsl_Label, Dsl_test, Dsl_Label_test = get_data(28,28)  #4000,1120
+Dsl, Dsl_Label, Dsl_test, Dsl_Label_test = get_data(280,280)  #4000,1120
 
 def save_pkl(D,path):
     with open(path, 'wb') as f:
