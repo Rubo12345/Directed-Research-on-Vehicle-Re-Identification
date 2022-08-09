@@ -14,6 +14,7 @@ import new_resnet
 import sys
 import Losses
 import IAM_Attention
+import time
 sys.path.append('/home/rutu/WPI/Directed_Research/Directed-Research-on-Vehicle-Re-Identification/')
 from Datasets import Rotation, get_new_data
 
@@ -26,8 +27,8 @@ class Model(nn.Module):
         self.green_red = new_resnet.Green_Red(575)
         self.purple = new_resnet.purple(4)
         self.blue = new_resnet.blue(575)
-        # self.iam = CAM_Module(Module) # use it as self.iam.forward(x)
-        self.iam = IAM_Attention
+        self.iam = CAM_Module(Module) # use it as self.iam.forward(x)
+        # self.iam = IAM_Attention
         self.loss_CE = torch.nn.CrossEntropyLoss()
         self.loss_CSE = torch.nn.CrossEntropyLoss(label_smoothing=0.1)
         self.loss_TRI = Losses.triplet_loss(margin=0.3)
@@ -35,6 +36,7 @@ class Model(nn.Module):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     def forward_branch1(self, x):
+        F1T1 = time.time()
         R_0 = Rotation._apply_2d_rotation(x,0)
         R_90 = Rotation._apply_2d_rotation(x,90)
         R_180 = Rotation._apply_2d_rotation(x,180)
@@ -42,42 +44,53 @@ class Model(nn.Module):
         Rot_Data = [R_0,R_90,R_180,R_270]
         Rot_Data_Label = [0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3]
         Rot_Data_Label = torch.tensor(Rot_Data_Label, dtype = torch.long )
-        # Rot_Data_Label = Rot_Data_Label.to(self.device)
-        # L_slb = torch.tensor(0, dtype = torch.long).to(self.device)
-        L_slb = torch.tensor(0)
+        Rot_Data_Label = Rot_Data_Label.to(self.device)
+        L_slb = torch.tensor(0, dtype = torch.long).to(self.device)
+        # L_slb = torch.tensor(0)
+
+        next = []
         for i in range(len(Rot_Data)):
-            torch.cuda.empty_cache()
+            # Rot_Data[i] = Rot_Data[i].to(device)
             x = self.orange(Rot_Data[i])
+            next.append(x)
             out = self.purple(x)
             L_slb = L_slb + self.loss_CE(out, Rot_Data_Label) 
-        return out, L_slb
+        F1T2 = time.time()
+        print("F1 Time: ",(F1T2 - F1T1))
+        return out, L_slb, next[0]
 
     def forward_branch3(self, x, y):
+        F3T1 = time.time()
         out = self.green_red(x)
-        # self.tri_label[0,y] = 1
         L_gb_tri = self.loss_TRI(out[1],y)
         L_gb_sce = self.loss_CSE(out[0], y)
         L_gb = L_gb_sce + L_gb_tri
+        F3T2 = time.time()
         return out, L_gb
 
-    def forward_branch2(self, x,y):
+    def forward_branch2(self,x,y,o1):
+        F2T1 = time.time()
         initial = x
-        x = self.orange(x)
-        # x = self.iam.forward(x)
-        x = self.iam.IAM_Attention(x)
-        x1 = Model.forward_branch3(self,initial,y)[0][3][1]
+        x = self.iam.forward(o1)
+        # x = self.iam.IAM_Attention(o1)
+        F3T1 = time.time()
+        GB_out,L_gb = Model.forward_branch3(self,initial,y)
+        F3T2 = time.time()
+        print("F3 Time: ",(F3T2 - F3T1))
+        x1 = GB_out[3][1]
         m = torch.mul(x,x1)
         out = self.blue(m)
-        # self.tri_label[0,y] = 1
         L_gfb_tri = self.loss_TRI(out[1],y)
         L_gfb_sce = self.loss_CSE(out[0], y)
         L_gfb = L_gfb_sce + L_gfb_tri
-        return out, L_gfb
+        F2T2 = time.time()
+        print("F2 Time: ",(F2T2 - F2T1))
+        return out, L_gfb, GB_out, L_gb
 
     def forward(self, x,y):
-        out1,L_slb = Model.forward_branch1(self,x)
-        out3, L_gb = Model.forward_branch3(self,x,y)
-        out2, L_gfb = Model.forward_branch2(self,x,y)
+        out1,L_slb,o1 = Model.forward_branch1(self,x)
+        # out3, L_gb = Model.forward_branch3(self,x,y)
+        out2, L_gfb, out3, L_gb = Model.forward_branch2(self,x,y,o1)
         return out1, L_slb, out2, L_gfb, out3, L_gb
 
 def the_model():
@@ -85,16 +98,19 @@ def the_model():
     return model
 
 def test():
-    x = torch.randn(28,3,224,224)
+    T1 = time.time()
+    x = torch.randn(28,3,224,224).to(device)
     Rot_Data_Label = [0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3]
-    y = torch.tensor(Rot_Data_Label)
-    net = the_model()
+    y = torch.tensor(Rot_Data_Label).to(device)
+    net = the_model().to(device)
     net = net
     f = net(x,y)
-    print(f[0].shape)
-    print(f[1])
-    print(f[2][0].shape)
-    print(f[3])
-    print(f[4][0].shape)
-    print(f[5])
-test()
+    # print(f[0].shape)
+    # print(f[1])
+    # print(f[2][0].shape)
+    # print(f[3])
+    # print(f[4][0].shape)
+    # print(f[5])
+    T2 = time.time()
+    print("Time",(T2-T1))
+# test()
