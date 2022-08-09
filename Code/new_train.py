@@ -85,46 +85,48 @@ def train_slb(epochs):          #doubt for the training loop
             optimizer.step()                      # Adams Optimizer
             train_loss += loss.item()             # Train_loss Summation
             
-            ''' if train_step % 20 == 0:              # print every 20 train_steps
+            '''# if train_step % 20 == 0:              # print every 20 train_steps
 
-                print(f'[{e + 1}, {train_step + 1}] loss: {train_loss / 20:.3f}')
+            #     print(f'[{e + 1}, {train_step + 1}] loss: {train_loss / 20:.3f}')
                 
-                correct = 0; n_samples = 0; accuracy = 0
+            #     correct = 0; n_samples = 0; accuracy = 0
                 
-                the_model.eval()
+            #     the_model.eval()
 
-                with torch.no_grad():
-                    for val_step, test_dic in enumerate(veri_test_loader):
+            #     with torch.no_grad():
+            #         for val_step, test_dic in enumerate(veri_test_loader):
                 
-                        test_images = test_dic['image'].squeeze()
-                        test_labels = test_dic['label'].squeeze()
+            #             test_images = test_dic['image'].squeeze()
+            #             test_labels = test_dic['label'].squeeze()
                         
-                        output = the_model(test_images,test_labels)
+            #             output = the_model(test_images,test_labels)
 
-                        L_slb = output[1]
-                        L_gfb = output[3]
-                        L_gb = output[5]
+            #             L_slb = output[1]
+            #             L_gfb = output[3]
+            #             L_gb = output[5]
 
-                        loss = (0.5 * L_gfb) + (0.5 * L_gb) + L_slb 
+            #             loss = (0.5 * L_gfb) + (0.5 * L_gb) + L_slb 
 
-                        val_loss = val_loss + loss
+            #             val_loss = val_loss + loss
 
-                        _, pred = torch.max(output[2][0],1)
+            #             _, pred = torch.max(output[2][0],1)
 
-                        n_samples += test_labels.size(0)
+            #             # print(pred)
+            #             # print(test_labels)
+                        
+            #             n_samples += test_labels.size(0)
 
-                        correct += (pred == test_labels).sum().item()
+            #             correct += (pred == test_labels).sum().item()
 
-                    val_loss /= (val_step + 1)      
+            #         val_loss /= (val_step + 1)      
 
-                    accuracy = 100 * correct / n_samples
+            #         accuracy = 100 * correct / n_samples
                     
-                    print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f} %')
+            #         print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f} %')
 
-                    # print(f'Validation Loss: {val_loss:.4f}')
+            #         # print(f'Validation Loss: {val_loss:.4f}')
 
-                the_model.train()
-'''
+            #     the_model.train()'''
         
         train_loss /= (train_step + 1)
 
@@ -132,5 +134,5 @@ def train_slb(epochs):          #doubt for the training loop
 
     print("Training Finished")
 
-train_slb(2) 
+train_slb(50) 
 

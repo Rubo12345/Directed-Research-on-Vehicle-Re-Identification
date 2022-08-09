@@ -130,7 +130,7 @@ class Normed_PAM_Module(Module):
     def __init__(self, in_dim):
         super(Normed_PAM_Module, self).__init__()
         self.channel_in = in_dim
-        print(in_dim)
+        # print(in_dim)
         self.query_conv = Conv2d(
             in_channels=in_dim,
             out_channels=in_dim // 8,
@@ -184,7 +184,6 @@ class CAM_Module(Module):
     def __init__(self, in_dim):
         super().__init__()
         self.channel_in = in_dim
-
         self.gamma = Parameter(torch.zeros(1))
         self.softmax = Softmax(dim=-1)
 
@@ -204,14 +203,18 @@ class CAM_Module(Module):
         # proj_key = proj_key / torch.norm(proj_key, p=2, dim=1, keepdim=True).clamp(min=1e-6)
 
         energy = torch.bmm(proj_query, proj_key)
+        # print("Energy: ",energy.shape)
         max_energy_0 = torch.max(energy, -1, keepdim=True)[0].expand_as(energy)
+        # print("Max_energy_0: ",max_energy_0.shape)
         energy_new = max_energy_0 - energy
+        # print("Energy: ",energy_new.shape )
         attention = self.softmax(energy_new)
+        # print("Attention: ",attention.shape)
         proj_value = x.view(m_batchsize, C, -1)
 
         out = torch.bmm(attention, proj_value)
         out = out.view(m_batchsize, C, height, width)
-
+        # print("Out: ",out.shape)
         logging.debug('cam device: {}, {}'.format(out.device, self.gamma.device))
         gamma = self.gamma.to(out.device)
         out = gamma * out + x
