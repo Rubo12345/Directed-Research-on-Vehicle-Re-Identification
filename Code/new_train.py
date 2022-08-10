@@ -6,6 +6,7 @@ from Datasets import get_new_data
 import os.path as osp
 import xml.etree.ElementTree as ET
 import model
+import time
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -16,8 +17,8 @@ def directory_paths():
     return dataset_dir,Dsl_path, Dsl_test_path
 
 dataset_dir,Dsl_path, Dsl_test_path = directory_paths()
-veri_loader, veri = get_new_data.data_loader(Dsl_path, 28)
-veri_test_loader, veri_test = get_new_data.data_loader(Dsl_test_path,28)
+veri_loader, veri = get_new_data.data_loader(Dsl_path, 4)
+veri_test_loader, veri_test = get_new_data.data_loader(Dsl_test_path,4)
 # class_names = veri.class_names
 
 def Optimizer(optim, param_groups):
@@ -46,22 +47,24 @@ def Model():
     return the_model, optimizer
 
 the_model,optimizer = Model()
-# the_model.to(device)
+the_model.to(device)
 
 def train_slb(epochs):          #doubt for the training loop
     
+    T1 = time.time()
     print('Start Training')
     
     for e in range(0, epochs):
         
         train_loss = 0; val_loss = 0
-        
+        n_samples = 0; correct = 0
+
         the_model.train()
 
         for train_step, dic in enumerate(veri_loader):
 
-            train_images = dic['image'].squeeze()
-            train_labels = dic['label'].squeeze()
+            train_images = dic['image'].squeeze().to(device)
+            train_labels = dic['label'].squeeze().type(torch.LongTensor).to(device)
             optimizer.zero_grad()                 # Zero the parameter gradient
             output = the_model(train_images,train_labels)
 
@@ -81,58 +84,78 @@ def train_slb(epochs):          #doubt for the training loop
             L_gb = output[5]
 
             loss = (0.5 * L_gfb) + (0.5 * L_gb) + L_slb 
+            
             loss.backward()                       # Back Prop
+            
             optimizer.step()                      # Adams Optimizer
+            
+            print("[ Epoch:", e , " , train_step: ",train_step," , loss: ",loss.item(),"]")
+            
             train_loss += loss.item()             # Train_loss Summation
             
-            '''# if train_step % 20 == 0:              # print every 20 train_steps
+            _, pred = torch.max(output[2][0],1)
 
-            #     print(f'[{e + 1}, {train_step + 1}] loss: {train_loss / 20:.3f}')
-                
-            #     correct = 0; n_samples = 0; accuracy = 0
-                
-            #     the_model.eval()
+            n_samples += train_labels.size(0)
 
-            #     with torch.no_grad():
-            #         for val_step, test_dic in enumerate(veri_test_loader):
+            correct += (pred == train_labels).sum().item()
+
+            if train_step % 24 == 0:              # print every 20 train_steps
+
+                # print(f'[{e + 1}, {train_step + 1}] loss: {train_loss / 20:.3f}')
                 
-            #             test_images = test_dic['image'].squeeze()
-            #             test_labels = test_dic['label'].squeeze()
+                correct = 0; n_samples = 0; accuracy = 0
+                
+                the_model.eval()
+
+                with torch.no_grad():
+                    for val_step, test_dic in enumerate(veri_test_loader):
+                
+                        test_images = test_dic['image'].squeeze().to(device)
+                        test_labels = test_dic['label'].squeeze().type(torch.LongTensor).to(device)
+
+                        output = the_model(test_images,test_labels)
+
+                        L_slb = output[1]
+                        L_gfb = output[3]
+                        L_gb = output[5]
+
+                        loss = (0.5 * L_gfb) + (0.5 * L_gb) + L_slb 
+
+                        val_loss = val_loss + loss
+
+                        _, pred = torch.max(output[2][0],1)
+
+                        # print(pred)
+                        # print(test_labels)
                         
-            #             output = the_model(test_images,test_labels)
+                        n_samples += test_labels.size(0)
 
-            #             L_slb = output[1]
-            #             L_gfb = output[3]
-            #             L_gb = output[5]
+                        # print("pred: ", pred)
+                        # print("test_labels: ", test_labels)
 
-            #             loss = (0.5 * L_gfb) + (0.5 * L_gb) + L_slb 
+                        correct += (pred == test_labels).sum().item()
 
-            #             val_loss = val_loss + loss
+                    val_loss /= (val_step + 1)      
 
-            #             _, pred = torch.max(output[2][0],1)
-
-            #             # print(pred)
-            #             # print(test_labels)
-                        
-            #             n_samples += test_labels.size(0)
-
-            #             correct += (pred == test_labels).sum().item()
-
-            #         val_loss /= (val_step + 1)      
-
-            #         accuracy = 100 * correct / n_samples
+                    accuracy = 100 * correct / n_samples
                     
-            #         print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f} %')
+                    print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f} %')
 
-            #         # print(f'Validation Loss: {val_loss:.4f}')
+                    # print(f'Validation Loss: {val_loss:.4f}')
 
-            #     the_model.train()'''
+                the_model.train()
         
         train_loss /= (train_step + 1)
 
+        accuracy = 100 * correct / n_samples
+
+        print(" ")
         print(f'Training Loss: {train_loss:.4f}')
+        print(f'Training Accuracy: {accuracy:.4f}')
+        print(" ")
 
     print("Training Finished")
-
-train_slb(50) 
+    T2 = time.time()
+    print("Time",(T2-T1))
+train_slb(10) 
 
