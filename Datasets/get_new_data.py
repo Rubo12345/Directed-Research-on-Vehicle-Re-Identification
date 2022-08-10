@@ -103,7 +103,7 @@ def get_data(No_of_Train_Images, No_of_Test_Images):
     Dsl_test,Dsl_Label_test = Data_List_Test(Test_Images,No_of_Test_Images)
     return Dsl, Dsl_Label, Dsl_test, Dsl_Label_test
 
-Dsl, Dsl_Label, Dsl_test, Dsl_Label_test = get_data(280,280)  #4000,1120
+Dsl, Dsl_Label, Dsl_test, Dsl_Label_test = get_data(5000,100)  #4000,1120
 
 def save_pkl(D,path):
     with open(path, 'wb') as f:
@@ -139,8 +139,10 @@ class Veri(Dataset):
         file = self.files[idx]
         D = read_pkl(file)
         return {
-            'image': torch.tensor(D['image']),
-            'label': torch.tensor(D['label'], dtype=torch.long),
+            # 'image': torch.tensor(D['image']),
+            # 'label': torch.tensor(D['label'], dtype=torch.long),
+            'image': D['image'].clone().detach(),
+            'label': D['label'].clone().detach().type(torch.LongTensor)
             # 'class_names': self.class_names
             # Have a look at the class names
         }
