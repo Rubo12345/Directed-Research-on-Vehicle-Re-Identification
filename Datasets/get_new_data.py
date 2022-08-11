@@ -91,6 +91,7 @@ def Data_List_Test(Test_Images,Data_Size):  #for new train
         Dsl_test.append(_4d_tensor)
         Index = Classes.index(int(root[0][i].attrib['vehicleID']))
         label = Classes_index[Index]
+        # label = int(root[0][i].attrib['vehicleID'])
         Dsl_Label_test.append(label)
     Dsl_Label_test = torch.Tensor(Dsl_Label_test)
 
@@ -103,7 +104,7 @@ def get_data(No_of_Train_Images, No_of_Test_Images):
     Dsl_test,Dsl_Label_test = Data_List_Test(Test_Images,No_of_Test_Images)
     return Dsl, Dsl_Label, Dsl_test, Dsl_Label_test
 
-Dsl, Dsl_Label, Dsl_test, Dsl_Label_test = get_data(5000,100)  #4000,1120
+Dsl, Dsl_Label, Dsl_test, Dsl_Label_test = get_data(40,10)  
 
 def save_pkl(D,path):
     with open(path, 'wb') as f:
@@ -129,11 +130,9 @@ class Veri(Dataset):
     def __init__(self, root_dir, transform=None):
         self.files = glob(f'{root_dir}*.pkl')
         self.transform = transform
-        # self.class_names = ['0','1','2','3']  # 0 for '0', 1 for '90', 2 for '180', 3 for '270'
-        # Have a look at the class names
-
+        
     def __len__(self):
-        return len(self.files)  # partial data, return = 10
+        return len(self.files) 
 
     def __getitem__(self, idx):
         file = self.files[idx]
@@ -143,11 +142,9 @@ class Veri(Dataset):
             # 'label': torch.tensor(D['label'], dtype=torch.long),
             'image': D['image'].clone().detach(),
             'label': D['label'].clone().detach().type(torch.LongTensor)
-            # 'class_names': self.class_names
-            # Have a look at the class names
         }
 
-def data_loader(path,batch_size):
+def data_loader(path,batch_size,b):
     veri = Veri(path)
-    loader = torch.utils.data.DataLoader(veri, batch_size, shuffle=False)
+    loader = torch.utils.data.DataLoader(veri, batch_size, shuffle=b)
     return loader,veri 
