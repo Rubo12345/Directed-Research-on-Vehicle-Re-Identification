@@ -8,6 +8,7 @@ import xml.etree.ElementTree as ET
 import model
 import time
 import pandas as pd
+import numpy
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -55,13 +56,17 @@ def train_slb(epochs):          #doubt for the training loop
     T1 = time.time()
     print('Start Training')
     
+    col1 = "sb"
+    col2 = "gfb"
+    col3 = "gb"
+    slb =[]; gfb = []; gb = []
+    Val_loss = []; Acc = []; Tr_Loss = []
+
     for e in range(0, epochs):
 
-        col1 = "Validation_Loss"
-        col2 = "Accuracy"
-        col3 = "Training_Loss"
-
-        Val_loss = []; Acc = []; Tr_Loss = []
+        # col1 = "Validation_Loss"
+        # col2 = "Accuracy"
+        # col3 = "Training_Loss"
 
         train_loss = 0; val_loss = 0
         n_samples = 0; correct = 0
@@ -76,7 +81,7 @@ def train_slb(epochs):          #doubt for the training loop
             # train_images = dic['image'].squeeze()
             # train_labels = dic['label'].squeeze().type(torch.LongTensor)
 
-            optimizer.zero_grad()                 # Zero the parameter gradient
+            optimizer.zero_grad()                
             output = the_model(train_images,train_labels)
 
             '''
@@ -90,78 +95,94 @@ def train_slb(epochs):          #doubt for the training loop
             Lambda(slb) = 1.0
             '''
 
+            print(" ")
             L_slb = output[1]
+            slb.append(float(L_slb))
+            print("L_slb: ",L_slb)
+
             L_gfb = output[3]
+            gfb.append(float(L_gfb))
+            print("L_gfb: ",L_gfb)
+
             L_gb = output[5]
+            gb.append(float(L_gb))
+            print("L_gb: ",L_gb)
+            print(" ")
 
             loss = (0.5 * L_gfb) + (0.5 * L_gb) + L_slb 
             
-            loss.backward()                       # Back Prop
+            loss.backward()                       
             
-            optimizer.step()                      # Adams Optimizer
+            optimizer.step()              
             
             print("[ Epoch:", e , " , train_step: ",train_step," , loss: ",loss.item(),"]")
             
-            train_loss += loss.item()             # Train_loss Summation
+            train_loss += loss.item()            
 
-            if train_step % 125 == 0:              # print every 125 train_steps
+            # if train_step % 10 == 0:              
 
-                # print(f'[{e + 1}, {train_step + 1}] loss: {train_loss / 20:.3f}')
+            #     # print(f'[{e + 1}, {train_step + 1}] loss: {train_loss / 20:.3f}')
                 
-                correct = 0; n_samples = 0; accuracy = 0
+            #     correct = 0; n_samples = 0; accuracy = 0
                 
-                the_model.eval()
+            #     the_model.eval()
 
-                with torch.no_grad():
-                    for val_step, test_dic in enumerate(veri_test_loader):
+            #     with torch.no_grad():
+            #         for val_step, test_dic in enumerate(veri_test_loader):
                 
-                        test_images = test_dic['image'].squeeze().to(device)
-                        test_labels = test_dic['label'].squeeze().type(torch.LongTensor).to(device)
+            #             test_images = test_dic['image'].squeeze().to(device)
+            #             test_labels = test_dic['label'].squeeze().type(torch.LongTensor).to(device)
 
-                        # test_images = test_dic['image'].squeeze()
-                        # test_labels = test_dic['label'].squeeze().type(torch.LongTensor)
+            #             # test_images = test_dic['image'].squeeze()
+            #             # test_labels = test_dic['label'].squeeze().type(torch.LongTensor)
 
-                        output = the_model(test_images,test_labels)
+            #             output = the_model(test_images,test_labels)
 
-                        L_slb = output[1]
-                        L_gfb = output[3]
-                        L_gb = output[5]
+            #             # print(" ")
+            #             L_slb = output[1]
+            #             # print("L_slb: ",L_slb)
+            #             L_gfb = output[3]
+            #             # print("L_gfb: ",L_gfb)
+            #             L_gb = output[5]
+            #             # print("L_gb: ",L_gb)
+            #             # print(" ")
+            #             loss = (0.5 * L_gfb) + (0.5 * L_gb) + L_slb 
 
-                        loss = (0.5 * L_gfb) + (0.5 * L_gb) + L_slb 
+            #             val_loss = val_loss + loss
 
-                        val_loss = val_loss + loss
-
-                        _, pred = torch.max(output[2][0],1)
+            #             _, pred = torch.max(output[2][0],1)
                         
-                        n_samples += test_labels.size(0)
+            #             n_samples += test_labels.size(0)
 
-                        correct += (pred == test_labels).sum().item()
+            #             correct += (pred == test_labels).sum().item()
 
-                val_loss /= (val_step + 1)      
-                Val_loss.append(val_loss)
+            #     val_loss /= (val_step + 1)  
+            #     val_loss = val_loss.cpu().numpy()    
+            #     Val_loss.append(val_loss)
+            #     val_loss = torch.tensor(val_loss)
 
-                accuracy = 100 * correct / n_samples
-                Acc.append(accuracy)
+            #     accuracy = 100 * correct / n_samples
+            #     Acc.append(accuracy)
 
-                print(" ")
-                print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f} %')
-                print(" ")
-                # print(f'Validation Loss: {val_loss:.4f}')
+            #     print(" ")
+            #     print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f} %')
+            #     print(" ")
 
-                the_model.train()
+            #     the_model.train()
         
         train_loss /= (train_step + 1)
         Tr_Loss.append(train_loss)
         
         print(" ")
         print(f'Training Loss: {train_loss:.4f}')
-        # print(f'Training Accuracy: {accuracy:.4f}')
         print(" ")
 
     print("Training Finished")
-    data = pd.DataFrame({col1:Val_loss,col2:Acc,col3:Tr_Loss})
-    data.to_excel('Train_Test_Results.xlsx',sheet_name = 'Train_Test', index = True)
+    # data = pd.DataFrame({col1:Val_loss,col2:Acc})
+    # data.to_excel('Train_Test_Results.xlsx',sheet_name = 'Train_Test', index = True)
+    data = pd.DataFrame({col1:slb,col2:gfb,col3:gb})
+    data.to_excel('Losses.xlsx',sheet_name = 'Compare', index = True)
     T2 = time.time()
     print("Time",(T2-T1))
-train_slb(50) 
+train_slb(10) 
 
