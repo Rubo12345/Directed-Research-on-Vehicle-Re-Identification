@@ -14,6 +14,7 @@ import torch.utils.model_zoo as model_zoo
 from weight_init import init_pretrained_weights, weights_init_classifier,weights_init_kaiming
 from attention import CAM_Module
 import classifier
+import time
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -290,7 +291,7 @@ class ResNet_18_Orange(nn.Module):
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
-        x = self.layer4(x)
+        x = self.layer4(x) #error
         return x
 
     def forward(self, x):
@@ -544,7 +545,7 @@ def orange(num_classes, loss = 'softmax', pretrained = True, **kwargs):
         init_pretrained_weights(model,model_urls['resnet18'])
     return model
 
-def purple(num_classes, loss = 'softmax', pretrained = False, **kwargs):
+def purple(num_classes, loss = 'softmax', pretrained = True, **kwargs):
     model = Purple(
         num_classes=num_classes,
         loss = loss,
@@ -559,7 +560,7 @@ def purple(num_classes, loss = 'softmax', pretrained = False, **kwargs):
         init_pretrained_weights(model,model_urls['resnet18'])
     return model
 
-def blue(num_classes = 576, loss={'softmax'}, pretrained=True, use_bnneck=True,
+def blue(num_classes = 575, loss={'softmax'}, pretrained=True, use_bnneck=True,
                 **kwargs):
     model = Blue(
         num_classes=num_classes,
@@ -587,9 +588,16 @@ def Green_Red(num_classes, loss={'softmax'}, pretrained=True,use_bnneck=True, **
 def test():
     net1 = orange(4)
     net2 = purple(4)
+    net3 = Green_Red(575)
     x = torch.randn(28,3,224,224)
-    x1 = net1(x)
-    x2 = net2(x1)
-    print(x2.shape)
+    # x1 = net1(x)
+    # x2 = net2(x1)
+    F3T1 = time.time()
+    for i in range(20):
+        x = torch.randn(28,3,224,224)
+        x3 = net3(x)
+    F3T2 = time.time()
+    print(x3[0].shape)
+    print("F3 Time: ",(F3T2 - F3T1))
 # test()
 

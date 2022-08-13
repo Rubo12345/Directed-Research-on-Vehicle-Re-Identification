@@ -19,7 +19,7 @@ def directory_paths():
     return dataset_dir,Dsl_path, Dsl_test_path
 
 dataset_dir,Dsl_path, Dsl_test_path = directory_paths()
-veri_loader, veri = get_new_data.data_loader(Dsl_path, 4,True)
+veri_loader, veri = get_new_data.data_loader(Dsl_path,4,True)
 veri_test_loader, veri_test = get_new_data.data_loader(Dsl_test_path,4,False)
 # class_names = veri.class_names
 
@@ -49,9 +49,10 @@ def Model():
     return the_model, optimizer
 
 the_model,optimizer = Model()
+# torch.cuda.clear_memory_allocated() 
 the_model.to(device)
 
-def train_slb(epochs):          #doubt for the training loop
+def train_slb(epochs):          
     
     T1 = time.time()
     print('Start Training')
@@ -59,14 +60,10 @@ def train_slb(epochs):          #doubt for the training loop
     col1 = "sb"
     col2 = "gfb"
     col3 = "gb"
-    slb =[]; gfb = []; gb = []
+    slb = []; gfb = []; gb = []
     Val_loss = []; Acc = []; Tr_Loss = []
 
     for e in range(0, epochs):
-
-        # col1 = "Validation_Loss"
-        # col2 = "Accuracy"
-        # col3 = "Training_Loss"
 
         train_loss = 0; val_loss = 0
         n_samples = 0; correct = 0
@@ -74,7 +71,7 @@ def train_slb(epochs):          #doubt for the training loop
         the_model.train()
 
         for train_step, dic in enumerate(veri_loader):
-
+            
             train_images = dic['image'].squeeze().to(device)
             train_labels = dic['label'].squeeze().type(torch.LongTensor).to(device)
 
@@ -178,11 +175,9 @@ def train_slb(epochs):          #doubt for the training loop
         print(" ")
 
     print("Training Finished")
-    # data = pd.DataFrame({col1:Val_loss,col2:Acc})
-    # data.to_excel('Train_Test_Results.xlsx',sheet_name = 'Train_Test', index = True)
     data = pd.DataFrame({col1:slb,col2:gfb,col3:gb})
-    data.to_excel('Losses.xlsx',sheet_name = 'Compare', index = True)
+    data.to_excel('Losses.xlsx',sheet_name = 'Compare_Losses', index = True)
     T2 = time.time()
     print("Time",(T2-T1))
-train_slb(10) 
+train_slb(50) 
 

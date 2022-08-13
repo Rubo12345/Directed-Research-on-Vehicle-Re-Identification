@@ -43,21 +43,21 @@ class Model(nn.Module):
         R_270 = Rotation._apply_2d_rotation(x,270)
         Rot_Data = [R_0,R_90,R_180,R_270]
         # Rot_Data_Label = [0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3]
-        Rot_Data_Label = [0,1,2,3]
+        Rot_Data_Label = [0,1,2,3] # sometimes remaining images in last epoch, may not be 4, which might lead to an error
         Rot_Data_Label = torch.tensor(Rot_Data_Label,dtype = torch.long)
         Rot_Data_Label = Rot_Data_Label.type(torch.LongTensor).to(self.device)
         L_slb = torch.tensor(0, dtype = torch.long).to(self.device)
-        # L_slb = torch.tensor(0)
+        # L_slb = torch.tensor(0, dtype = torch.long)
 
         next = []
         for i in range(len(Rot_Data)):
             x = Rot_Data[i].to(device)
+            # x = Rot_Data[i]
             x = self.orange(x)
             next.append(x)
             out = self.purple(x)
             L_slb = L_slb + self.loss_CE(out, Rot_Data_Label) 
         F1T2 = time.time()
-        # print("F1 Time: ",(F1T2 - F1T1))
         return out, L_slb, next[0]
 
     def forward_branch3(self, x, y):
@@ -77,7 +77,6 @@ class Model(nn.Module):
         F3T1 = time.time()
         GB_out,L_gb = Model.forward_branch3(self,initial,y)
         F3T2 = time.time()
-        # print("F3 Time: ",(F3T2 - F3T1))
         x1 = GB_out[3][1]
         m = torch.mul(x,x1)
         out = self.blue(m)
@@ -85,7 +84,6 @@ class Model(nn.Module):
         L_gfb_sce = self.loss_CSE(out[0], y)
         L_gfb = L_gfb_sce + L_gfb_tri
         F2T2 = time.time()
-        # print("F2 Time: ",(F2T2 - F2T1))
         return out, L_gfb, GB_out, L_gb
 
     def forward(self, x,y):
@@ -100,18 +98,19 @@ def the_model():
 
 def test():
     T1 = time.time()
-    x = torch.randn(28,3,224,224)
-    Rot_Data_Label = [0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3]
-    y = torch.tensor(Rot_Data_Label)
-    net = the_model()
+    x = torch.randn(4,3,224,224).to(device)
+    # Rot_Data_Label = [0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3]
+    Rot_Data_Label = [0,1,2,3]
+    y = torch.tensor(Rot_Data_Label).to(device)
+    net = the_model().to(device)
     net = net
     f = net(x,y)
-    # print(f[0].shape)
-    # print(f[1])
-    # print(f[2][0].shape)
-    # print(f[3])
-    # print(f[4][0].shape)
-    # print(f[5])
+    print(f[0].shape)
+    print(f[1])
+    print(f[2][0].shape)
+    print(f[3])
+    print(f[4][0].shape)
+    print(f[5])
     T2 = time.time()
     print("Time",(T2-T1))
 # test()
