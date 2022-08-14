@@ -9,7 +9,7 @@ import model
 import time
 import pandas as pd
 import numpy
-
+import matplotlib.pyplot as plt
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 def directory_paths():
@@ -22,6 +22,38 @@ dataset_dir,Dsl_path, Dsl_test_path = directory_paths()
 veri_loader, veri = get_new_data.data_loader(Dsl_path,4,True)
 veri_test_loader, veri_test = get_new_data.data_loader(Dsl_test_path,4,False)
 # class_names = veri.class_names
+
+def show_images(images, labels,preds):
+    plt.figure(figsize=(8, 4))
+    for i, image in enumerate(images):
+        plt.subplot(1,4, i + 1, xticks=[], yticks=[])
+        image = image.numpy().transpose((1, 2, 0))
+        mean = np.array([0.485, 0.456, 0.406])
+        std = np.array([0.229, 0.224, 0.225])
+        image = image * std + mean
+        image = np.clip(image, 0., 1.)
+        plt.imshow(image)
+        col = 'green'
+        if preds[i] != labels[i]:
+            col = 'red'
+        # plt.xlabel(f'{class_names[class_names.index(str(int(labels[i].numpy())))]}')
+        # plt.ylabel(f'{class_names[class_names.index(str(int(preds[i].numpy())))]}', color=col)
+    plt.tight_layout()
+    plt.show()
+
+def show_plot(loader):
+    for index, dic in enumerate(loader):
+        images_batch = dic['image'].squeeze()
+        labels_batch = dic['label'].squeeze()
+        print(images_batch.shape)
+        print(labels_batch)
+        show_images(images_batch,labels_batch,labels_batch)
+
+'''for val_step, test_dic in enumerate(veri_loader):     
+    test_images = test_dic['image'].squeeze().to(device)
+    test_labels = test_dic['label'].squeeze().type(torch.LongTensor).to(device)
+    print(test_labels)
+show_plot(veri_test_loader)'''
 
 def Optimizer(optim, param_groups):
     if optim == 'adam':
@@ -49,7 +81,6 @@ def Model():
     return the_model, optimizer
 
 the_model,optimizer = Model()
-# torch.cuda.clear_memory_allocated() 
 the_model.to(device)
 
 def train_slb(epochs):          
@@ -92,19 +123,19 @@ def train_slb(epochs):
             Lambda(slb) = 1.0
             '''
 
-            print(" ")
+            # print(" ")
             L_slb = output[1]
             slb.append(float(L_slb))
-            print("L_slb: ",L_slb)
+            # print("L_slb: ",L_slb)
 
             L_gfb = output[3]
             gfb.append(float(L_gfb))
-            print("L_gfb: ",L_gfb)
+            # print("L_gfb: ",L_gfb)
 
             L_gb = output[5]
             gb.append(float(L_gb))
-            print("L_gb: ",L_gb)
-            print(" ")
+            # print("L_gb: ",L_gb)
+            # print(" ")
 
             loss = (0.5 * L_gfb) + (0.5 * L_gb) + L_slb 
             
@@ -116,56 +147,63 @@ def train_slb(epochs):
             
             train_loss += loss.item()            
 
-            # if train_step % 10 == 0:              
-
-            #     # print(f'[{e + 1}, {train_step + 1}] loss: {train_loss / 20:.3f}')
+            if train_step % 10 == 0:              
                 
-            #     correct = 0; n_samples = 0; accuracy = 0
+                correct = 0; n_samples = 0; accuracy = 0
                 
-            #     the_model.eval()
+                the_model.eval()
 
-            #     with torch.no_grad():
-            #         for val_step, test_dic in enumerate(veri_test_loader):
+                with torch.no_grad():
+                    for val_step, test_dic in enumerate(veri_test_loader):
                 
-            #             test_images = test_dic['image'].squeeze().to(device)
-            #             test_labels = test_dic['label'].squeeze().type(torch.LongTensor).to(device)
+                        # test_images = test_dic['image'].squeeze()
+                        # test_labels = test_dic['label'].squeeze().type(torch.LongTensor)
 
-            #             # test_images = test_dic['image'].squeeze()
-            #             # test_labels = test_dic['label'].squeeze().type(torch.LongTensor)
+                        # show_images(test_images,test_labels, test_labels)
+                        # print(test_labels)
 
-            #             output = the_model(test_images,test_labels)
+                        test_images = test_dic['image'].squeeze().to(device)
+                        test_labels = test_dic['label'].squeeze().type(torch.LongTensor).to(device)
 
-            #             # print(" ")
-            #             L_slb = output[1]
-            #             # print("L_slb: ",L_slb)
-            #             L_gfb = output[3]
-            #             # print("L_gfb: ",L_gfb)
-            #             L_gb = output[5]
-            #             # print("L_gb: ",L_gb)
-            #             # print(" ")
-            #             loss = (0.5 * L_gfb) + (0.5 * L_gb) + L_slb 
+                        output = the_model(test_images,test_labels)
 
-            #             val_loss = val_loss + loss
+                        # print(" ")
+                        L_slb = output[1]
+                        # print("L_slb: ",L_slb)
+                        L_gfb = output[3]
+                        # print("L_gfb: ",L_gfb)
+                        L_gb = output[5]
+                        # print("L_gb: ",L_gb)
+                        # print(" ")
 
-            #             _, pred = torch.max(output[2][0],1)
+                        loss = (0.5 * L_gfb) + (0.5 * L_gb) + L_slb 
+
+                        val_loss += loss.item()
+
+                        _, pred = output[2][0].max(1)
                         
-            #             n_samples += test_labels.size(0)
+                        print(" ")
+                        print("Prediction: ",pred)
+                        print("Test_labels: ",test_labels)
+                        print(" ")
 
-            #             correct += (pred == test_labels).sum().item()
+                        n_samples += test_labels.size(0)
 
-            #     val_loss /= (val_step + 1)  
-            #     val_loss = val_loss.cpu().numpy()    
-            #     Val_loss.append(val_loss)
-            #     val_loss = torch.tensor(val_loss)
+                        correct += (pred == test_labels).sum().item()
 
-            #     accuracy = 100 * correct / n_samples
-            #     Acc.append(accuracy)
+                val_loss /= (val_step + 1) 
+                # val_loss = val_loss.cpu().numpy()    
+                # Val_loss.append(val_loss)
+                # val_loss = torch.tensor(val_loss)
 
-            #     print(" ")
-            #     print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f} %')
-            #     print(" ")
+                accuracy = 100 * correct / n_samples
+                Acc.append(accuracy)
 
-            #     the_model.train()
+                print(" ")
+                print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f} %')
+                print(" ")
+
+                the_model.train()
         
         train_loss /= (train_step + 1)
         Tr_Loss.append(train_loss)
@@ -179,5 +217,5 @@ def train_slb(epochs):
     data.to_excel('Losses.xlsx',sheet_name = 'Compare_Losses', index = True)
     T2 = time.time()
     print("Time",(T2-T1))
-train_slb(50) 
+train_slb(1) 
 
