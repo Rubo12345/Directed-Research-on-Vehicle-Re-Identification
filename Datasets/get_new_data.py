@@ -23,29 +23,18 @@ def directory_paths():
     V = veri_train.VeRi()
     dataset_dir = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi'
     train_dir = osp.join(dataset_dir, 'image_train')
-    train_list = None   # I think data gets shuffled using this  # 37778
+    train_list = osp.join(dataset_dir, 'name_train.txt') # IMP Change
     test_dir = osp.join(dataset_dir,'image_test')
-    test_list = None
-    Dsl_path = osp.join(dataset_dir,'Dsl/')
-    Dsl_test_path = osp.join(dataset_dir, 'Dsl_test/')
+    test_list = osp.join(dataset_dir, 'name_test.txt')  # IMP Change
+    query_dir = osp.join(dataset_dir, 'image_query')
+    query_list = osp.join(dataset_dir, 'name_query.txt')
+    img_train_path = osp.join(dataset_dir,'Dsl/')
+    img_test_path = osp.join(dataset_dir, 'Dsl_test/')
+    img_query_path = osp.join(dataset_dir,'Dsl_query/')
     root_dir = osp.join(dataset_dir,'Dsl')
-    return V, dataset_dir, train_dir, train_list, test_dir, train_list, test_list, Dsl_path, Dsl_test_path, root_dir
+    return V, dataset_dir, train_dir, train_list, test_dir, test_list,query_dir,query_list, img_train_path, img_test_path, img_query_path, root_dir
 
-V, dataset_dir, train_dir, train_list, test_dir, train_list, test_list, Dsl_path, Dsl_test_path, root_dir = directory_paths()
-
-def data_image_labels(train_dir, train_list):
-        train_data = V.process_dir(train_dir,train_list, relabel=True)
-        Train_Images = [];Train_Labels = [];Train_Cams = []
-        for image in range(len(train_data)):
-            Train_Images.append(train_data[image][0])
-            Train_Labels.append(train_data[image][1])
-            Train_Cams.append(train_data[image][2])
-        return Train_Images, Train_Labels, Train_Cams
-
-def image_to_pixel(image):
-    pix_val = list(image.getdata())
-    pix_val_flat = [x for sets in pix_val for x in sets]
-    return pix_val_flat
+V,dataset_dir,train_dir,train_list,test_dir,test_list,query_dir,query_list,img_train_path,img_test_path,img_query_path,root_dir = directory_paths()
 
 def input_to_4d_tensor(I):
     ''' Function converts the image into a tensor as well as size it'''
@@ -60,52 +49,6 @@ def input_to_4d_tensor(I):
     Tensor = torch.reshape(Tensor,(1,3,Tensor.shape[1],Tensor.shape[2]))
     return Tensor
 
-def Data_List_Train(Train_Images,Data_Size):  #for new train
-    Dsl = []; Dsl_Label = []
-    with open('/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/train_label.xml','r') as f:
-        root = ET.fromstring(f.read())
-  
-    Classes = classes.classes
-    Classes_index = classes.class_index
-
-    for i in range(Data_Size):
-        _4d_tensor = input_to_4d_tensor(Train_Images[i])
-        Dsl.append(_4d_tensor)
-        Index = Classes.index(int(root[0][i].attrib['vehicleID']))
-        label = Classes_index[Index]
-        Dsl_Label.append(label)
-    Dsl_Label = torch.Tensor(Dsl_Label)
-
-    return Dsl,Dsl_Label
-
-def Data_List_Test(Test_Images,Data_Size):  #for new train
-    Dsl_test = []; Dsl_Label_test = []
-    with open('/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/test_label.xml','r') as f:
-        root = ET.fromstring(f.read())
-    
-    Classes = classes.classes
-    Classes_index = classes.class_index
-
-    for i in range(Data_Size):
-        _4d_tensor = input_to_4d_tensor(Test_Images[i])
-        Dsl_test.append(_4d_tensor)
-        Index = Classes.index(int(root[0][i].attrib['vehicleID']))
-        label = Classes_index[Index]
-        # label = int(root[0][i].attrib['vehicleID'])
-        Dsl_Label_test.append(label)
-    Dsl_Label_test = torch.Tensor(Dsl_Label_test)
-
-    return Dsl_test,Dsl_Label_test
-
-def get_data(No_of_Train_Images, No_of_Test_Images):
-    Train_Images, Train_Labels, Train_Cams = data_image_labels(train_dir, train_list)
-    Dsl,Dsl_Label = Data_List_Train(Train_Images,No_of_Train_Images)
-    Test_Images, Test_Labels, Test_Cams = data_image_labels(test_dir,test_list)
-    Dsl_test,Dsl_Label_test = Data_List_Test(Test_Images,No_of_Test_Images)
-    return Dsl, Dsl_Label, Dsl_test, Dsl_Label_test
-
-Dsl, Dsl_Label, Dsl_test, Dsl_Label_test = get_data(40,10)  
-
 def save_pkl(D,path):
     with open(path, 'wb') as f:
         pickle.dump(D, f)
@@ -114,16 +57,34 @@ def read_pkl(path):
     with open(path, 'rb') as f:
         return pickle.load(f)
 
-def save_pkl_folder(Data, Data_Label, path):
-    for i in range(len(Data)):
-        D = {}
-        D['image'] = Data[i]
-        D['label'] = Data_Label[i]
-        tmp = path + f'{i}.pkl'
-        save_pkl(D,tmp)
+def save_pkl_folder(Data, Data_Label, path,i):
+    D = {}
+    D['image'] = Data
+    D['label'] = Data_Label
+    tmp = path + f'{i}.pkl'
+    save_pkl(D,tmp)
 
-save_pkl_folder(Dsl,Dsl_Label,Dsl_path)
-save_pkl_folder(Dsl_test,Dsl_Label_test, Dsl_test_path)
+def get_data(train_dir,train_list,test_dir,test_list,query_dir,query_list,train_size,test_size,query_size):
+    train_data = V.process_dir(train_dir,train_list, relabel=True)
+    test_data = V.process_dir(test_dir,test_list, relabel=True)
+    query_data = V.process_dir(query_dir,query_list, relabel=True)
+
+    for image in range(train_size):
+        train_img = input_to_4d_tensor(train_data[image][0])
+        train_label = train_data[image][1]
+        save_pkl_folder(train_img,train_label,img_train_path,image)
+
+    for image in range(test_size):
+        test_img = input_to_4d_tensor(test_data[image][0])
+        test_label = test_data[image][1]
+        save_pkl_folder(test_img,test_label,img_test_path,image)
+
+    for image in range(query_size):
+        query_img = input_to_4d_tensor(query_data[image][0])
+        query_label = query_data[image][1]
+        save_pkl_folder(query_img,query_label,img_query_path,image)
+
+get_data(train_dir,train_list,test_dir,test_list,query_dir,query_list,37746,11579,1678)
 
 class Veri(Dataset):
     """dataset."""
@@ -138,8 +99,6 @@ class Veri(Dataset):
         file = self.files[idx]
         D = read_pkl(file)
         return {
-            # 'image': torch.tensor(D['image']),
-            # 'label': torch.tensor(D['label'], dtype=torch.long),
             'image': D['image'].clone().detach(),
             'label': D['label'].clone().detach().type(torch.LongTensor)
         }
@@ -148,3 +107,6 @@ def data_loader(path,batch_size,b):
     veri = Veri(path)
     loader = torch.utils.data.DataLoader(veri, batch_size, shuffle=b)
     return loader,veri 
+
+
+
