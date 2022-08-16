@@ -10,18 +10,20 @@ import time
 import pandas as pd
 import numpy
 import matplotlib.pyplot as plt
+import torch.nn as nn
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 def directory_paths():
     dataset_dir = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi'
-    Dsl_path = osp.join(dataset_dir,'Dsl/')
-    Dsl_test_path = osp.join(dataset_dir, 'Dsl_test/')
-    return dataset_dir,Dsl_path, Dsl_test_path
+    img_train_path = osp.join(dataset_dir,'Dsl/')
+    img_test_path = osp.join(dataset_dir, 'Dsl_test/')
+    img_query_path = osp.join(dataset_dir,'Dsl_query/')
+    return dataset_dir,img_train_path, img_test_path,img_query_path
 
-dataset_dir,Dsl_path, Dsl_test_path = directory_paths()
-veri_loader, veri = get_new_data.data_loader(Dsl_path,4,True)
-veri_test_loader, veri_test = get_new_data.data_loader(Dsl_test_path,4,False)
-# class_names = veri.class_names
+dataset_dir,img_train_path, img_test_path,img_query_path = directory_paths()
+veri_loader, veri = get_new_data.data_loader(img_train_path,1,True)
+veri_test_loader, veri_test = get_new_data.data_loader(img_test_path,1,False)
+veri_query_loader, veri_query = get_new_data.data_loader(img_query_path,1,False)
 
 def show_images(images, labels,preds):
     plt.figure(figsize=(8, 4))
@@ -55,21 +57,21 @@ def show_plot(loader):
     print(test_labels)
 show_plot(veri_test_loader)'''
 
-def Optimizer(optim, param_groups):
+def Optimizer(optim, param_groups, lr):
     if optim == 'adam':
-        return torch.optim.Adam(param_groups, lr=1e-4, weight_decay=5e-4,eps = 1e-8,
+        return torch.optim.Adam(param_groups, lr, weight_decay=5e-4,eps = 1e-8,
                                 betas=(0.9,0.999))
 
     elif optim == 'amsgrad':
-        return torch.optim.Adam(param_groups, lr=1e-4, weight_decay=5e-4,
+        return torch.optim.Adam(param_groups, lr, weight_decay=5e-4,
                                 betas=(0.9,0.999), amsgrad=True)
 
     elif optim == 'sgd':
-        return torch.optim.SGD(param_groups, lr=1e-4, momentum=0.9, weight_decay=5e-4,
+        return torch.optim.SGD(param_groups, lr, momentum=0.9, weight_decay=5e-4,
                                dampening=0.0, nesterov=False)
 
     elif optim == 'rmsprop':
-        return torch.optim.RMSprop(param_groups, lr=1e-4, momentum=0.9, weight_decay=5e-4,
+        return torch.optim.RMSprop(param_groups, lr, momentum=0.9, weight_decay=5e-4,
                                    alpha=0.99)
 
     else:
@@ -77,7 +79,7 @@ def Optimizer(optim, param_groups):
 
 def Model():
     the_model = model.the_model()
-    optimizer = Optimizer('adam',the_model.parameters())          #doubt
+    optimizer = Optimizer('adam',the_model.parameters(),lr = 1e-4)          #doubt
     return the_model, optimizer
 
 the_model,optimizer = Model()
@@ -91,6 +93,7 @@ def train_slb(epochs):
     col1 = "sb"
     col2 = "gfb"
     col3 = "gb"
+    
     slb = []; gfb = []; gb = []
     Val_loss = []; Acc = []; Tr_Loss = []
 
@@ -101,14 +104,13 @@ def train_slb(epochs):
 
         the_model.train()
 
-        for train_step, dic in enumerate(veri_loader):
+        for train_step, train_dic in enumerate(veri_loader):
             
-            train_images = dic['image'].squeeze().to(device)
-            train_labels = dic['label'].squeeze().type(torch.LongTensor).to(device)
-
-            # train_images = dic['image'].squeeze()
-            # train_labels = dic['label'].squeeze().type(torch.LongTensor)
-
+            train_images = train_dic['image'].squeeze().to(device)
+            train_images = train_images.reshape(1,3,224,224)
+            train_labels = train_dic['label'].squeeze().type(torch.LongTensor).to(device)
+            # print(train_images.shape)
+            # print(train_labels)
             optimizer.zero_grad()                
             output = the_model(train_images,train_labels)
 
@@ -126,15 +128,12 @@ def train_slb(epochs):
             # print(" ")
             L_slb = output[1]
             slb.append(float(L_slb))
-            # print("L_slb: ",L_slb)
 
             L_gfb = output[3]
             gfb.append(float(L_gfb))
-            # print("L_gfb: ",L_gfb)
 
             L_gb = output[5]
             gb.append(float(L_gb))
-            # print("L_gb: ",L_gb)
             # print(" ")
 
             loss = (0.5 * L_gfb) + (0.5 * L_gb) + L_slb 
@@ -147,64 +146,39 @@ def train_slb(epochs):
             
             train_loss += loss.item()            
 
-            if train_step % 10 == 0:              
+            # if train_step % 10 == 0:              
                 
-                correct = 0; n_samples = 0; accuracy = 0
+            #     correct = 0; n_samples = 0; accuracy = 0
                 
-                the_model.eval()
+            #     the_model.eval()
 
-                with torch.no_grad():
-                    for val_step, test_dic in enumerate(veri_test_loader):
-                
-                        # test_images = test_dic['image'].squeeze()
-                        # test_labels = test_dic['label'].squeeze().type(torch.LongTensor)
-
-                        # show_images(test_images,test_labels, test_labels)
-                        # print(test_labels)
-
-                        test_images = test_dic['image'].squeeze().to(device)
-                        test_labels = test_dic['label'].squeeze().type(torch.LongTensor).to(device)
-
-                        output = the_model(test_images,test_labels)
-
-                        # print(" ")
-                        L_slb = output[1]
-                        # print("L_slb: ",L_slb)
-                        L_gfb = output[3]
-                        # print("L_gfb: ",L_gfb)
-                        L_gb = output[5]
-                        # print("L_gb: ",L_gb)
-                        # print(" ")
-
-                        loss = (0.5 * L_gfb) + (0.5 * L_gb) + L_slb 
-
-                        val_loss += loss.item()
-
-                        _, pred = output[2][0].max(1)
+            #     with torch.no_grad():
+            #         for query_step, query_dic in enumerate(veri_query_loader):
+            #             rank_list = []
+            #             query_images = query_dic['image'].squeeze().to(device)
+            #             query_images = query_images.reshape(1,3,224,224)
+            #             query_labels = query_dic['label'].squeeze().type(torch.LongTensor).to(device)
                         
-                        print(" ")
-                        print("Prediction: ",pred)
-                        print("Test_labels: ",test_labels)
-                        print(" ")
+            #             query_output = the_model(query_images,query_labels)
+                        
+            #             for test_step, test_dic in enumerate(veri_test_loader):
+                    
+            #                 test_images = test_dic['image'].squeeze().to(device)
+            #                 test_images = test_images.reshape(1,3,224,224)
+            #                 test_labels = test_dic['label'].squeeze().type(torch.LongTensor).to(device)
 
-                        n_samples += test_labels.size(0)
+            #                 test_output = the_model(test_images,test_labels)
 
-                        correct += (pred == test_labels).sum().item()
+            #                 CC = nn.CosineSimilarity(test_output[2][0],query_output[2][0])
 
-                val_loss /= (val_step + 1) 
-                # val_loss = val_loss.cpu().numpy()    
-                # Val_loss.append(val_loss)
-                # val_loss = torch.tensor(val_loss)
+            #                 rank_list.append(CC)
+                            
+            #                 a = rank_list.index(max(rank_list))
 
-                accuracy = 100 * correct / n_samples
-                Acc.append(accuracy)
-
-                print(" ")
-                print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f} %')
-                print(" ")
-
-                the_model.train()
-        
+            #                 print(len(rank_list))
+                
+            #     the_model.train()
+    
         train_loss /= (train_step + 1)
         Tr_Loss.append(train_loss)
         
@@ -219,3 +193,48 @@ def train_slb(epochs):
     print("Time",(T2-T1))
 train_slb(1) 
 
+def test():
+    with torch.no_grad():
+        for query_step, query_dic in enumerate(veri_query_loader):
+            rank_list = []
+            query_images = query_dic['image'].squeeze().to(device)
+            query_labels = query_dic['label'].squeeze().type(torch.LongTensor).to(device)
+
+            query_output = the_model(query_images,query_labels)
+            
+            for test_step, test_dic in enumerate(veri_test_loader):
+        
+                test_images = test_dic['image'].squeeze().to(device)
+                test_labels = test_dic['label'].squeeze().type(torch.LongTensor).to(device)
+
+                test_output = the_model(test_images,test_labels)
+
+                CC = nn.CosineSimilarity(test_output[2][0],query_output[2][0])
+
+                rank_list.append(CC)
+                
+                a = rank_list.index(max(rank_list))
+
+                # print(" ")
+                L_slb = test_output[1]
+                # print("L_slb: ",L_slb)
+                L_gfb = test_output[3]
+                # print("L_gfb: ",L_gfb)
+                L_gb = test_output[5]
+                # print("L_gb: ",L_gb)
+                # print(" ")
+
+                loss = (0.5 * L_gfb) + (0.5 * L_gb) + L_slb 
+
+                val_loss += loss.item()
+
+                _, pred = test_output[2][0].max(1)
+                
+                print(" ")
+                print("Prediction: ",pred)
+                print("Test_labels: ",test_labels)
+                print(" ")
+
+                n_samples += test_labels.size(0)
+
+                correct += (pred == test_labels).sum().item()
