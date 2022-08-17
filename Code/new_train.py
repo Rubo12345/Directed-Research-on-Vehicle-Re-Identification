@@ -8,20 +8,19 @@ import xml.etree.ElementTree as ET
 import model
 import time
 import pandas as pd
-import numpy
 import matplotlib.pyplot as plt
 import torch.nn as nn
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 def directory_paths():
     dataset_dir = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi'
-    img_train_path = osp.join(dataset_dir,'Dsl/')
-    img_test_path = osp.join(dataset_dir, 'Dsl_test/')
-    img_query_path = osp.join(dataset_dir,'Dsl_query/')
+    img_train_path = osp.join(dataset_dir,'Dsl2/')
+    img_test_path = osp.join(dataset_dir, 'Dsl2_test/')
+    img_query_path = osp.join(dataset_dir,'Dsl2_query/')
     return dataset_dir,img_train_path, img_test_path,img_query_path
 
 dataset_dir,img_train_path, img_test_path,img_query_path = directory_paths()
-veri_loader, veri = get_new_data.data_loader(img_train_path,1,True)
+veri_loader, veri = get_new_data.data_loader(img_train_path,4,True)
 veri_test_loader, veri_test = get_new_data.data_loader(img_test_path,1,False)
 veri_query_loader, veri_query = get_new_data.data_loader(img_query_path,1,False)
 
@@ -56,6 +55,10 @@ def show_plot(loader):
     test_labels = test_dic['label'].squeeze().type(torch.LongTensor).to(device)
     print(test_labels)
 show_plot(veri_test_loader)'''
+
+def save_checkpoint(state,filename = "my_checkpoint.pth.tar"):
+    print("=> saving checkpoint")
+    torch.save(state,filename)
 
 def Optimizer(optim, param_groups, lr):
     if optim == 'adam':
@@ -93,25 +96,29 @@ def train_slb(epochs):
     col1 = "sb"
     col2 = "gfb"
     col3 = "gb"
-    
+    col4 = "Total Loss"
+    col5 = "Training Loss"
+
     slb = []; gfb = []; gb = []
-    Val_loss = []; Acc = []; Tr_Loss = []
+    Val_loss = []; Acc = []; Tr_Loss = [];Loss = []
 
     for e in range(0, epochs):
 
         train_loss = 0; val_loss = 0
         n_samples = 0; correct = 0
 
+        check_point = {'state_dict':the_model.state_dict(),'optimizer':optimizer.state_dict()}
+        save_checkpoint(check_point)
+
         the_model.train()
 
         for train_step, train_dic in enumerate(veri_loader):
             
             train_images = train_dic['image'].squeeze().to(device)
-            train_images = train_images.reshape(1,3,224,224)
             train_labels = train_dic['label'].squeeze().type(torch.LongTensor).to(device)
-            # print(train_images.shape)
-            # print(train_labels)
-            optimizer.zero_grad()                
+
+            optimizer.zero_grad()  
+                          
             output = the_model(train_images,train_labels)
 
             '''
@@ -137,7 +144,7 @@ def train_slb(epochs):
             # print(" ")
 
             loss = (0.5 * L_gfb) + (0.5 * L_gb) + L_slb 
-            
+            Loss.append(float(loss))
             loss.backward()                       
             
             optimizer.step()              
@@ -187,11 +194,13 @@ def train_slb(epochs):
         print(" ")
 
     print("Training Finished")
-    data = pd.DataFrame({col1:slb,col2:gfb,col3:gb})
-    data.to_excel('Losses.xlsx',sheet_name = 'Compare_Losses', index = True)
+    data = pd.DataFrame({col1:slb,col2:gfb,col3:gb,col4:Loss})
+    data.to_excel('Losses_1.xlsx',sheet_name = 'Compare_Losses', index = True)
+    data2 = pd.DataFrame({col5:Tr_Loss})
+    data2.to_excel('Losses_2.xlsx',sheet_name = 'Compare_Losses', index = True)
     T2 = time.time()
     print("Time",(T2-T1))
-train_slb(1) 
+train_slb(5) 
 
 def test():
     with torch.no_grad():
@@ -212,7 +221,7 @@ def test():
                 CC = nn.CosineSimilarity(test_output[2][0],query_output[2][0])
 
                 rank_list.append(CC)
-                
+
                 a = rank_list.index(max(rank_list))
 
                 # print(" ")

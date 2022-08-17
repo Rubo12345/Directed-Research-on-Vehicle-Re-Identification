@@ -317,7 +317,6 @@ class Purple(nn.Module):
         self.classifier = classifier.classifier('cosine',512,4)
         self._init_params()
 
-
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
@@ -416,7 +415,7 @@ class IBN(nn.Module):
         return out
 
 class Blue(nn.Module):
-    def __init__ (self, num_classes=576, loss={'softmax'}, pretrained=True, use_bnneck=True,
+    def __init__ (self, num_classes, loss={'softmax'}, pretrained=True, use_bnneck=True,
                  trans_classes=79, **kwargs):
         self.inplanes = 64
         super(Blue,self).__init__()
@@ -466,7 +465,7 @@ class Blue(nn.Module):
         return cls_score_global, global_feat , bn_feat_global
 
 class ResNet50_Green_Red(nn.Module):
-    def __init__(self, num_classes=576, loss={'softmax'}, pretrained=True, use_bnneck=True,
+    def __init__(self, num_classes, loss={'softmax'}, pretrained=True, use_bnneck=True,
                  trans_classes=79, **kwargs):
         super().__init__()
         base = ResNet(
@@ -560,7 +559,7 @@ def purple(num_classes, loss = 'softmax', pretrained = True, **kwargs):
         init_pretrained_weights(model,model_urls['resnet18'])
     return model
 
-def blue(num_classes = 575, loss={'softmax'}, pretrained=True, use_bnneck=True,
+def blue(num_classes, loss={'softmax'}, pretrained=True, use_bnneck=True,
                 **kwargs):
     model = Blue(
         num_classes=num_classes,

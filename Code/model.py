@@ -16,7 +16,7 @@ import Losses
 import IAM_Attention
 import time
 sys.path.append('/home/rutu/WPI/Directed_Research/Directed-Research-on-Vehicle-Re-Identification/')
-from Datasets import Rotation, get_new_data
+from Datasets import Rotation
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -42,21 +42,22 @@ class Model(nn.Module):
         R_180 = Rotation._apply_2d_rotation(x,180)
         R_270 = Rotation._apply_2d_rotation(x,270)
         Rot_Data = [R_0,R_90,R_180,R_270]
-        # Rot_Data_Label = [0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3]
-        Rot_Data_Label = [0,1,2,3] # sometimes remaining images in last epoch, may not be 4, which might lead to an error
+        Rot_Data_Label_0 = [0,0,0,0]
+        Rot_Data_Label_90 = [1,1,1,1]
+        Rot_Data_Label_180 = [2,2,2,2]
+        Rot_Data_Label_270 = [3,3,3,3]
+        Rot_Data_Label = [Rot_Data_Label_0,Rot_Data_Label_90,Rot_Data_Label_180,Rot_Data_Label_270]
         Rot_Data_Label = torch.tensor(Rot_Data_Label,dtype = torch.long)
-        Rot_Data_Label = Rot_Data_Label.type(torch.LongTensor).to(self.device)
-        L_slb = torch.tensor(0, dtype = torch.long).to(self.device)
+        Rot_Data_Label = Rot_Data_Label.type(torch.LongTensor).to(device)
+        L_slb = torch.tensor(0, dtype = torch.long).to(device)
         # L_slb = torch.tensor(0, dtype = torch.long)
-
         next = []
         for i in range(len(Rot_Data)):
             x = Rot_Data[i].to(device)
-            # x = Rot_Data[i]
             x = self.orange(x)
             next.append(x)
             out = self.purple(x)
-            L_slb = L_slb + self.loss_CE(out, Rot_Data_Label) 
+            L_slb = L_slb + self.loss_CE(out, Rot_Data_Label[i]) 
         F1T2 = time.time()
         return out, L_slb, next[0]
 

@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 from __future__ import division
+from queue import Empty
 
 import torch
 import torch.nn as nn
@@ -120,7 +121,10 @@ class TripletLoss(nn.Module):
         for i in range(n):
             dist_ap.append(dist[i][mask[i]].max().unsqueeze(0))
             dist_an.append(dist[i][mask[i]].min().unsqueeze(0))
-            # dist_an.append(dist[i][mask[i] == 0].min().unsqueeze(0)) #Make sure to check this
+            # if dist[i][mask[i] == 0] != :
+            #     dist_an.append(dist[i][mask[i] == 0].min().unsqueeze(0)) #Make sure to check this
+            # else:
+            #     dist_an.append(dist[i][mask[i]].min().unsqueeze(0))
         dist_ap = torch.cat(dist_ap)
         dist_an = torch.cat(dist_an)
 
