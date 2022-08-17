@@ -6,8 +6,6 @@ import numpy as np
 import torch
 import torchvision
 from torch.utils.data import Dataset, DataLoader
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
 import os.path as osp
 from PIL import Image
 import pickle
@@ -28,10 +26,10 @@ def directory_paths():
     test_list = osp.join(dataset_dir, 'name_test.txt')  # IMP Change
     query_dir = osp.join(dataset_dir, 'image_query')
     query_list = osp.join(dataset_dir, 'name_query.txt')
-    img_train_path = osp.join(dataset_dir,'Dsl/')
-    img_test_path = osp.join(dataset_dir, 'Dsl_test/')
-    img_query_path = osp.join(dataset_dir,'Dsl_query/')
-    root_dir = osp.join(dataset_dir,'Dsl')
+    img_train_path = osp.join(dataset_dir,'Dsl2/')
+    img_test_path = osp.join(dataset_dir, 'Dsl2_test/')
+    img_query_path = osp.join(dataset_dir,'Dsl2_query/')
+    root_dir = osp.join(dataset_dir,'Dsl2')
     return V, dataset_dir, train_dir, train_list, test_dir, test_list,query_dir,query_list, img_train_path, img_test_path, img_query_path, root_dir
 
 V,dataset_dir,train_dir,train_list,test_dir,test_list,query_dir,query_list,img_train_path,img_test_path,img_query_path,root_dir = directory_paths()
@@ -84,7 +82,7 @@ def get_data(train_dir,train_list,test_dir,test_list,query_dir,query_list,train_
         query_label = query_data[image][1]
         save_pkl_folder(query_img,query_label,img_query_path,image)
 
-get_data(train_dir,train_list,test_dir,test_list,query_dir,query_list,37746,11579,1678)
+get_data(train_dir,train_list,test_dir,test_list,query_dir,query_list,37744,100,12) #37746,11579,1678
 
 class Veri(Dataset):
     """dataset."""
@@ -100,7 +98,7 @@ class Veri(Dataset):
         D = read_pkl(file)
         return {
             'image': D['image'].clone().detach(),
-            'label': D['label'].clone().detach().type(torch.LongTensor)
+            'label': torch.tensor(D['label']).clone().detach().type(torch.LongTensor)
         }
 
 def data_loader(path,batch_size,b):

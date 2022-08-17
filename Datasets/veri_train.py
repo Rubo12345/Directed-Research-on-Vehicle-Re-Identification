@@ -28,8 +28,8 @@ class VeRi(BaseImageDataset):
         super(VeRi, self).__init__(root)
         self.dataset_dir = osp.join(self.root, self.dataset_dir)
         self.train_dir = osp.join(self.dataset_dir, 'image_train')
-        self.train_list = None
-        # self.train_list = osp.join(self.dataset_dir, 'name_train.txt')
+        # self.train_list = None
+        self.train_list = osp.join(self.dataset_dir, 'name_train.txt')
         # self.query_dir = osp.join(self.dataset_dir, 'image_query')        #Purpose Comment
         # self.query_list = osp.join(self.dataset_dir, 'name_query.txt')    #Purpose Comment
         # self.gallery_dir = osp.join(self.dataset_dir, 'image_test')       #Purpose Comment
@@ -102,39 +102,3 @@ class VeRi(BaseImageDataset):
             Train_Cams.append(train_data[image][2])
         return Train_Images, Train_Labels, Train_Cams
 
-#----------------------------------------------------------------------------------------------------------------------------------#
-'''
-V = VeRi()
-dataset_dir = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi'
-train_dir = osp.join(dataset_dir, 'image_train')
-train_list = None   # I think data gets shuffled using this  # 37778
-# train_list = osp.join(dataset_dir, 'name_train.txt')           # 37746
-train_data = V.process_dir(train_dir,train_list, relabel=True)
-
-Train_Images = [];Train_Labels = [];Train_Cams = []
-for image in range(len(train_data)):
-    Train_Images.append(train_data[image][0])
-    Train_Labels.append(train_data[image][1])
-    Train_Cams.append(train_data[image][2])
-
-# print(Train_Images)
-# print(Train_Labels)
-# print(len(Train_Labels))
-# print(len(Train_Images))
-# print(V.data_image_labels(dataset_dir, train_dir, train_list))
-'''
-#----------------------------------------------------------------------------------------------------------------------------------#
-'''
-from PIL import Image
-im = Image.open("/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/image_train/0496_c017_00035340_0.jpg")
-print(im)
-pix_val = list(im.getdata())
-# print(pix_val)
-print(len(pix_val))  # length is 24336, but as it is RGB it should be 73008 
-pix_val_flat = [x for sets in pix_val for x in sets]
-# print(pix_val_flat)
-print(len(pix_val_flat))   # length is 73008, flattened (Also check the sequence of colors R G B)
-# import matplotlib.pylab as plt
-# imshow(im)
-'''
-#----------------------------------------------------------------------------------------------------------------------------------#
