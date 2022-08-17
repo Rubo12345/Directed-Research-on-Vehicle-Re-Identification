@@ -4,7 +4,7 @@ import torch
 import numpy
 from Datasets import get_data
 import os.path as osp
-import model
+import classification_model
 import time
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -73,7 +73,7 @@ def Optimizer(optim, param_groups):
         raise ValueError('Unsupported optimizer: {}'.format(optim))
 
 def Model():
-    the_model = model.the_model()
+    the_model = classification_model.the_model()
     optimizer = Optimizer('adam',the_model.parameters())          #doubt
     return the_model, optimizer
 
@@ -200,9 +200,9 @@ def train_slb(epochs):
 
     print("Training Finished")
     data = pd.DataFrame({col4:Val_loss,col5:Acc})
-    data.to_excel('Losses.xlsx',sheet_name = 'Compare_Losses', index = True)
+    data.to_excel('Losses__classi_1.xlsx',sheet_name = 'Compare_Losses', index = True)
     data2 = pd.DataFrame({col6:Tr_Loss})
-    data2.to_excel('Losses_2.xlsx',sheet_name = 'Training_Losses_2', index = True)
+    data2.to_excel('Losses_classi_2.xlsx',sheet_name = 'Training_Losses_2', index = True)
     T2 = time.time()
     print("Time",(T2-T1))
 train_slb(20) 
