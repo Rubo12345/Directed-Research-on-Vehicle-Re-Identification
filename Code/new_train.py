@@ -21,8 +21,8 @@ def directory_paths():
 
 dataset_dir,img_train_path, img_test_path,img_query_path = directory_paths()
 veri_loader, veri = get_new_data.data_loader(img_train_path,4,True)
-veri_test_loader, veri_test = get_new_data.data_loader(img_test_path,1,False)
-veri_query_loader, veri_query = get_new_data.data_loader(img_query_path,1,False)
+veri_test_loader, veri_test = get_new_data.data_loader(img_test_path,4,False)
+veri_query_loader, veri_query = get_new_data.data_loader(img_query_path,4,False)
 
 def show_images(images, labels,preds):
     plt.figure(figsize=(8, 4))
@@ -135,12 +135,13 @@ def train_slb(epochs):
             # print(" ")
             L_slb = output[1]
             slb.append(float(L_slb))
-
+            print(L_slb)
             L_gfb = output[3]
             gfb.append(float(L_gfb))
-
+            print(L_gfb)
             L_gb = output[5]
             gb.append(float(L_gb))
+            print(L_gb)
             # print(" ")
 
             loss = (0.5 * L_gfb) + (0.5 * L_gb) + L_slb 
@@ -194,37 +195,62 @@ def train_slb(epochs):
         print(" ")
 
     print("Training Finished")
+    torch.save(the_model.state_dict(),'model_weights.pth')
     data = pd.DataFrame({col1:slb,col2:gfb,col3:gb,col4:Loss})
     data.to_excel('Losses_1.xlsx',sheet_name = 'Compare_Losses', index = True)
     data2 = pd.DataFrame({col5:Tr_Loss})
     data2.to_excel('Losses_2.xlsx',sheet_name = 'Compare_Losses', index = True)
     T2 = time.time()
     print("Time",(T2-T1))
-train_slb(5) 
+train_slb(10) 
 
 def test():
+    slb_op = [];gfb_op = []; gb = []
+    testing_loss = 0
+    c1 = "SLB_OUTPUT"
+    c2 = "GFB_OUTPUT"
+    c3 = "GB_OUTPUT"
+
     with torch.no_grad():
         for query_step, query_dic in enumerate(veri_query_loader):
-            rank_list = []
+            rank_list_1 = []; rank_list_2 = []; rank_list_3 = []
             query_images = query_dic['image'].squeeze().to(device)
             query_labels = query_dic['label'].squeeze().type(torch.LongTensor).to(device)
-
             query_output = the_model(query_images,query_labels)
             
+            '''# query_SLB = query_output[0]  # check the feature map if needed
+            # slb_op.append(query_SLB)
+            # query_GFB = query_output[2][0]
+            # slb_op.append(query_GFB)
+            # query_GB = query_output[5][0]
+            # slb_op.append(query_GB)'''
+            
+            query_GFB = query_output[2][0]
+
             for test_step, test_dic in enumerate(veri_test_loader):
-        
                 test_images = test_dic['image'].squeeze().to(device)
                 test_labels = test_dic['label'].squeeze().type(torch.LongTensor).to(device)
 
                 test_output = the_model(test_images,test_labels)
+                
+                '''# test_SLB = test_output[0]
+                # test_GFB = test_output[2][0]
+                # test_GB = test_output[5][0]
 
-                CC = nn.CosineSimilarity(test_output[2][0],query_output[2][0])
+                # CC1 = nn.CosineSimilarity(test_SLB,query_SLB)
+                # CC2 = nn.CosineSimilarity(test_GFB,query_GFB)
+                # CC3 = nn.CosineSimilarity(test_GB,query_GB)
 
-                rank_list.append(CC)
+                # rank_list_1.append(CC1)
+                # rank_list_2.append(CC2)
+                # rank_list_3.append(CC3)'''
 
-                a = rank_list.index(max(rank_list))
+                test_GFB = test_output[2][0]
+                CC2 = nn.CosineSimilarity(test_GFB,query_GFB)
+                rank_list_2.append(CC2)
+                a = rank_list_2.index(max(rank_list_2))
 
-                # print(" ")
+                '''# print(" ")
                 L_slb = test_output[1]
                 # print("L_slb: ",L_slb)
                 L_gfb = test_output[3]
@@ -235,15 +261,21 @@ def test():
 
                 loss = (0.5 * L_gfb) + (0.5 * L_gb) + L_slb 
 
-                val_loss += loss.item()
+                testing_loss += loss.item()
 
                 _, pred = test_output[2][0].max(1)
                 
                 print(" ")
                 print("Prediction: ",pred)
                 print("Test_labels: ",test_labels)
-                print(" ")
+                print(" ")'''
+
+                pred = 0
 
                 n_samples += test_labels.size(0)
 
                 correct += (pred == test_labels).sum().item()
+
+            print("Testing_Loss", testing_loss/test_step)
+
+            testing_loss = 0
