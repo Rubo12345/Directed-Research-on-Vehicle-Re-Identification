@@ -17,7 +17,7 @@ def directory_paths():
     return dataset_dir,Dsl_path, Dsl_test_path
 
 dataset_dir,Dsl_path, Dsl_test_path = directory_paths()
-veri_loader, veri = get_data.data_loader(Dsl_path,4,False)
+veri_loader, veri = get_data.data_loader(Dsl_path,4,True)
 veri_test_loader, veri_test = get_data.data_loader(Dsl_test_path,4,False)
 
 # def show_images(images, labels,preds):

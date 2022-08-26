@@ -13,7 +13,7 @@ from attention import CAM_Module
 import new_resnet
 import sys
 import Losses
-import IAM_Attention
+# import IAM_Attention
 import time
 sys.path.append('/home/rutu/WPI/Directed_Research/Directed-Research-on-Vehicle-Re-Identification/')
 from Datasets import Rotation

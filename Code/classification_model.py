@@ -27,7 +27,7 @@ class Model(nn.Module):
         self.green_red = Classification_ResNet.Green_Red(200)
         self.purple = Classification_ResNet.purple(4)
         self.blue = Classification_ResNet.blue(200)
-        self.iam = CAM_Module(Module) # use it as self.iam.forward(x)
+        # self.iam = CAM_Module(Module) # use it as self.iam.forward(x)
         # self.iam = IAM_Attention
         self.loss_CE = torch.nn.CrossEntropyLoss()
         self.loss_CSE = torch.nn.CrossEntropyLoss(label_smoothing=0.1)
@@ -73,13 +73,14 @@ class Model(nn.Module):
     def forward_branch2(self,x,y,o1):
         F2T1 = time.time()
         initial = x
-        x = self.iam.forward(o1)
+        # x = self.iam.forward(o1)
         # x = self.iam.IAM_Attention(o1)
         F3T1 = time.time()
         GB_out,L_gb = Model.forward_branch3(self,initial,y)
         F3T2 = time.time()
         x1 = GB_out[3][1]
-        m = torch.mul(x,x1)
+        # m = torch.mul(x,x1)
+        m = x1
         out = self.blue(m)
         L_gfb_tri = self.loss_TRI(out[1],y)
         L_gfb_sce = self.loss_CSE(out[0], y)
