@@ -11,23 +11,25 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import torch.nn as nn
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+import glob
+import os
 
 PATH = '/home/rutu/WPI/Directed_Research/Directed-Research-on-Vehicle-Re-Identification/model_weights.pth'
 
 def directory_paths():
     dataset_dir = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi'
-    img_train_path = osp.join(dataset_dir,'Dsl2/')
-    img_test_path = osp.join(dataset_dir, 'Dsl2_test/')
-    img_query_path = osp.join(dataset_dir,'Dsl2_query/')
+    img_train_path = osp.join(dataset_dir,'Dsl/')
+    img_test_path = osp.join(dataset_dir, 'Dsl_test/')
+    img_query_path = osp.join(dataset_dir,'Dsl_query/')
     return dataset_dir,img_train_path, img_test_path,img_query_path
 
 dataset_dir,img_train_path, img_test_path,img_query_path = directory_paths()
 veri_loader, veri = get_new_data.data_loader(img_train_path,4,True)
-# veri_test_loader, veri_test = get_new_data.data_loader(img_test_path,4,False)
-# veri_query_loader, veri_query = get_new_data.data_loader(img_query_path,4,False)
+veri_test_loader, veri_test = get_new_data.data_loader(img_test_path,4,False)
+veri_query_loader, veri_query = get_new_data.data_loader(img_query_path,4,False)
 
 def show_images(images, labels,preds):
-    plt.figure(figsize=(8, 4))
+    plt.figure(figsize=(80, 40))
     for i, image in enumerate(images):
         plt.subplot(1,4, i + 1, xticks=[], yticks=[])
         image = image.numpy().transpose((1, 2, 0))
@@ -48,7 +50,7 @@ def show_plot(loader):
     for index, dic in enumerate(loader):
         images_batch = dic['image'].squeeze()
         labels_batch = dic['label'].squeeze()
-        print(images_batch.shape)
+        # print(images_batch.shape)
         print(labels_batch)
         show_images(images_batch,labels_batch,labels_batch)
 
@@ -216,5 +218,16 @@ def train_slb(epochs):
     data2.to_excel('Losses_2.xlsx',sheet_name = 'Compare_Losses', index = True)
     T2 = time.time()
     print("Time",(T2-T1))
-# train_slb(10) 
+
+    files_1 = glob.glob('/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl/*')
+    files_2 = glob.glob('/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl_test/*')
+    files_3 = glob.glob('/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl_query/*')
+    for f in files_1:
+        os.remove(f)
+    for g in files_2:
+        os.remove(g)
+    for h in files_3:
+        os.remove(h)
+
+train_slb(10) 
 
