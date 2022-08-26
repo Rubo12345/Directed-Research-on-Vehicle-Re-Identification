@@ -64,14 +64,14 @@ def save_pkl_folder(Data, Data_Label, path,i):
 
 def get_data(train_dir,train_list,test_dir,test_list,query_dir,query_list,train_size,test_size,query_size):
     train_data = V.process_dir(train_dir,train_list, relabel=True)
-    test_data = V.process_dir(test_dir,test_list, relabel=True)
-    query_data = V.process_dir(query_dir,query_list, relabel=True)
-
+    test_data = V.process_dir(test_dir,test_list, relabel=False)
+    query_data = V.process_dir(query_dir,query_list, relabel=False)
+    A = []
     for image in range(train_size):
         train_img = input_to_4d_tensor(train_data[image][0])
         train_label = train_data[image][1]
         save_pkl_folder(train_img,train_label,img_train_path,image)
-
+    
     for image in range(test_size):
         test_img = input_to_4d_tensor(test_data[image][0])
         test_label = test_data[image][1]
@@ -80,9 +80,12 @@ def get_data(train_dir,train_list,test_dir,test_list,query_dir,query_list,train_
     for image in range(query_size):
         query_img = input_to_4d_tensor(query_data[image][0])
         query_label = query_data[image][1]
+        A.append(query_label)
         save_pkl_folder(query_img,query_label,img_query_path,image)
+    print(A)
+    return train_data, test_data, query_data
 
-get_data(train_dir,train_list,test_dir,test_list,query_dir,query_list,37744,100,12) #37746,11579,1678
+train_data, test_data, query_data = get_data(train_dir,train_list,test_dir,test_list,query_dir,query_list,40,1000,28) #37746,11579,1678
 
 class Veri(Dataset):
     """dataset."""
@@ -103,7 +106,7 @@ class Veri(Dataset):
 
 def data_loader(path,batch_size,b):
     veri = Veri(path)
-    loader = torch.utils.data.DataLoader(veri, batch_size, shuffle=b)
+    loader = DataLoader(veri, batch_size, shuffle=b)
     return loader,veri 
 
 
