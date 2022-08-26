@@ -11,14 +11,16 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import torch.nn as nn
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+import glob
+import os
 
 PATH = '/home/rutu/WPI/Directed_Research/Directed-Research-on-Vehicle-Re-Identification/model_weights.pth'
 
 def directory_paths():
     dataset_dir = '/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi'
-    img_train_path = osp.join(dataset_dir,'Dsl2/')
-    img_test_path = osp.join(dataset_dir, 'Dsl2_test/')
-    img_query_path = osp.join(dataset_dir,'Dsl2_query/')
+    img_train_path = osp.join(dataset_dir,'Dsl/')
+    img_test_path = osp.join(dataset_dir, 'Dsl_test/')
+    img_query_path = osp.join(dataset_dir,'Dsl_query/')
     return dataset_dir,img_train_path, img_test_path,img_query_path
 
 dataset_dir,img_train_path, img_test_path,img_query_path = directory_paths()
@@ -58,7 +60,9 @@ the_model.load_state_dict(torch.load(PATH))
 the_model.eval()
 
 def test():
+    
     correct = 0
+
     '''slb_op = [];gfb_op = []; gb = []
     testing_loss = 0
     c1 = "SLB_OUTPUT"
@@ -66,11 +70,13 @@ def test():
     c3 = "GB_OUTPUT"
     Acc = []'''
     cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+    print("Start Testing: ")
     with torch.no_grad():
         for query_step, query_dic in enumerate(veri_query_loader):
             rank_list_1 = []; rank_list_2 = []; rank_list_3 = []
             query_images = query_dic['image'].squeeze().to(device)
             query_labels = query_dic['label'].squeeze().type(torch.LongTensor).to(device)
+            print(query_labels)
             query_output = the_model(query_images,query_labels)
             
             '''# query_SLB = query_output[0]  # check the feature map if needed
@@ -80,18 +86,20 @@ def test():
             # query_GB = query_output[5][0]
             # slb_op.append(query_GB)'''
             
-            query_GFB = query_output[2][0]
-          
+            query_GFB = query_output[2][1]
+
             for i in range(4):
                 query_gfb = query_GFB[i]
-                query_gfb = query_gfb.reshape((1,575))
+                query_gfb = query_gfb.reshape((1,2048))
                 Label = query_labels[i]
+                print(Label)
                 rank_list_2 = []
+
                 for test_step, test_dic in enumerate(veri_test_loader):
                     test_images = test_dic['image'].squeeze().to(device)
                     test_labels = test_dic['label'].squeeze().type(torch.LongTensor).to(device)
                     test_output = the_model(test_images,test_labels)
-                    
+
                     '''# test_SLB = test_output[0]
                     # test_GFB = test_output[2][0]
                     # test_GB = test_output[5][0]
@@ -104,20 +112,23 @@ def test():
                     # rank_list_2.append(CC2)
                     # rank_list_3.append(CC3)'''
 
-                    test_GFB = test_output[2][0]
-                    
+                    test_GFB = test_output[2][1]
+                    # print(test_GFB)
+
                     for j in range(4):
                         test_gfb = test_GFB[j]
-                        test_gfb = test_gfb.reshape((1,575))
+                        test_gfb = test_gfb.reshape((1,2048))
                         CC2 = cos(test_gfb,query_gfb)
                         rank_list_2.append(CC2)
-                print(len(rank_list_2))
-                print(rank_list_2)
+                # print(len(rank_list_2))
+
                 a = rank_list_2.index(max(rank_list_2))
-            
+                print(a)
                 pred = get_new_data.test_data[a][1]  
+                pred = torch.tensor(pred).to(device)
+                print(pred)
                 
-                '''# print(" ")
+                ''' #print(" ")
                 L_slb = test_output[1]
                 # print("L_slb: ",L_slb)
                 L_gfb = test_output[3]
@@ -144,12 +155,22 @@ def test():
                 print(correct)
                 print(" ")
 
-        n_samples = 160
+    n_samples = 28
 
-        accuracy = 100 * correct / n_samples
+    accuracy = 100 * correct / n_samples
 
-        print(" ")
-        print(f'Accuracy: {accuracy:.4f} %')
-        print(" ")
+    print(" ")
+    print(f'Accuracy: {accuracy:.4f} %')
+    print(" ")
+
+    files_1 = glob.glob('/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl/*')
+    files_2 = glob.glob('/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl_test/*')
+    files_3 = glob.glob('/home/rutu/WPI/Directed_Research/ReID_Datasets/VeRi/Dsl_query/*')
+    for f in files_1:
+        os.remove(f)
+    for g in files_2:
+        os.remove(g)
+    for h in files_3:
+        os.remove(h)
 
 test()     
