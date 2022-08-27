@@ -64,8 +64,8 @@ def save_pkl_folder(Data, Data_Label, path,i):
 
 def get_data(train_dir,train_list,test_dir,test_list,query_dir,query_list,train_size,test_size,query_size):
     train_data = V.process_dir(train_dir,train_list, relabel=True)
-    test_data = V.process_dir(test_dir,test_list, relabel=False)
-    query_data = V.process_dir(query_dir,query_list, relabel=False)
+    test_data = V.process_dir(test_dir,test_list, relabel=True)
+    query_data = V.process_dir(query_dir,query_list, relabel=True)
     
     for image in range(train_size):
         train_img = input_to_4d_tensor(train_data[image][0])
