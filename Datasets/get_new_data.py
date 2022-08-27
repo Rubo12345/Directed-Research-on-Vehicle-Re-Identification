@@ -26,10 +26,10 @@ def directory_paths():
     test_list = osp.join(dataset_dir, 'name_test.txt')  # IMP Change
     query_dir = osp.join(dataset_dir, 'image_query')
     query_list = osp.join(dataset_dir, 'name_query.txt')
-    img_train_path = osp.join(dataset_dir,'Dsl2/')
-    img_test_path = osp.join(dataset_dir, 'Dsl2_test/')
-    img_query_path = osp.join(dataset_dir,'Dsl2_query/')
-    root_dir = osp.join(dataset_dir,'Dsl2')
+    img_train_path = osp.join(dataset_dir,'Dsl/')
+    img_test_path = osp.join(dataset_dir, 'Dsl_test/')
+    img_query_path = osp.join(dataset_dir,'Dsl_query/')
+    root_dir = osp.join(dataset_dir,'Dsl')
     return V, dataset_dir, train_dir, train_list, test_dir, test_list,query_dir,query_list, img_train_path, img_test_path, img_query_path, root_dir
 
 V,dataset_dir,train_dir,train_list,test_dir,test_list,query_dir,query_list,img_train_path,img_test_path,img_query_path,root_dir = directory_paths()
@@ -66,26 +66,26 @@ def get_data(train_dir,train_list,test_dir,test_list,query_dir,query_list,train_
     train_data = V.process_dir(train_dir,train_list, relabel=True)
     test_data = V.process_dir(test_dir,test_list, relabel=False)
     query_data = V.process_dir(query_dir,query_list, relabel=False)
-    A = []
+    
     for image in range(train_size):
         train_img = input_to_4d_tensor(train_data[image][0])
         train_label = train_data[image][1]
         save_pkl_folder(train_img,train_label,img_train_path,image)
-    
+    test_D =[]  
     for image in range(test_size):
         test_img = input_to_4d_tensor(test_data[image][0])
         test_label = test_data[image][1]
+        test_D.append(test_label)
         save_pkl_folder(test_img,test_label,img_test_path,image)
-
+    query_D = []
     for image in range(query_size):
         query_img = input_to_4d_tensor(query_data[image][0])
         query_label = query_data[image][1]
-        A.append(query_label)
+        query_D.append(query_label)
         save_pkl_folder(query_img,query_label,img_query_path,image)
-    print(A)
     return train_data, test_data, query_data
 
-train_data, test_data, query_data = get_data(train_dir,train_list,test_dir,test_list,query_dir,query_list,40,1000,28) #37746,11579,1678
+train_data, test_data, query_data = get_data(train_dir,train_list,test_dir,test_list,query_dir,query_list,40,11576,28) #37746,11579,1678
 
 class Veri(Dataset):
     """dataset."""
