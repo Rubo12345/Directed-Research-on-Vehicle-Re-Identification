@@ -14,6 +14,7 @@ import new_resnet
 import sys
 import Losses
 # import IAM_Attention
+import Keypoint_Extraction
 import time
 sys.path.append('/home/rutu/WPI/Directed_Research/Directed-Research-on-Vehicle-Re-Identification/')
 from Datasets import Rotation
@@ -27,8 +28,9 @@ class Model(nn.Module):
         self.green_red = new_resnet.Green_Red(575)
         self.purple = new_resnet.purple(4)
         self.blue = new_resnet.blue(575)
-        self.iam = CAM_Module(Module) # use it as self.iam.forward(x)
+        # self.iam = CAM_Module(Module) # use it as self.iam.forward(x)
         # self.iam = IAM_Attention
+        self.iam = Keypoint_Extraction.IAM()
         self.loss_CE = torch.nn.CrossEntropyLoss()
         self.loss_CSE = torch.nn.CrossEntropyLoss(label_smoothing=0.1)
         self.loss_TRI = Losses.triplet_loss(margin=0.3)
@@ -73,8 +75,13 @@ class Model(nn.Module):
     def forward_branch2(self,x,y,o1):
         F2T1 = time.time()
         initial = x
-        x = self.iam.forward(o1)
+        # x = self.iam.forward(o1)
         # x = self.iam.IAM_Attention(o1)
+        R = self.iam(x)
+        x = R[0]
+        print(R[0].shape)
+        print(R[1])
+        print(R[2].shape)
         F3T1 = time.time()
         GB_out,L_gb = Model.forward_branch3(self,initial,y)
         F3T2 = time.time()
