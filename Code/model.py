@@ -96,7 +96,6 @@ class Model(nn.Module):
 
     def forward(self, x,y):
         out1,L_slb,o1 = Model.forward_branch1(self,x)
-        # out3, L_gb = Model.forward_branch3(self,x,y)
         out2, L_gfb, out3, L_gb = Model.forward_branch2(self,x,y,o1)
         return out1, L_slb, out2, L_gfb, out3, L_gb
 

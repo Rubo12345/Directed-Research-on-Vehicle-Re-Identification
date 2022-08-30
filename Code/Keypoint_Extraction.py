@@ -156,4 +156,4 @@ def test():
     # print(f[1])
     print(f[2].shape)
 
-# test()
+test()

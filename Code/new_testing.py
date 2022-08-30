@@ -27,7 +27,7 @@ dataset_dir,img_train_path, img_test_path,img_query_path = directory_paths()
 # veri_loader, veri = get_new_data.data_loader(img_train_path,4,True)
 veri_test_loader, veri_test = get_new_data.data_loader(img_test_path,4,False)
 veri_query_loader, veri_query = get_new_data.data_loader(img_query_path,4,False)
-
+print(len(veri_query_loader))
 def Optimizer(optim, param_groups, lr):
     if optim == 'adam':
         return torch.optim.Adam(param_groups, lr, weight_decay=5e-4,eps = 1e-8,
@@ -60,9 +60,7 @@ the_model.load_state_dict(torch.load(PATH))
 the_model.eval()
 
 def test():
-    
     correct = 0
-
     '''slb_op = [];gfb_op = []; gb = []
     testing_loss = 0
     c1 = "SLB_OUTPUT"
@@ -72,7 +70,9 @@ def test():
     cos = nn.CosineSimilarity(dim=1, eps=1e-6)
     print("Start Testing: ")
     with torch.no_grad():
+        # print("Hi-1")
         for query_step, query_dic in enumerate(veri_query_loader):
+            # print("Hi-2")
             rank_list_1 = []; rank_list_2 = []; rank_list_3 = []
             query_images = query_dic['image'].squeeze().to(device)
             query_labels = query_dic['label'].squeeze().type(torch.LongTensor).to(device)
@@ -89,6 +89,7 @@ def test():
             query_GFB = query_output[2][1]
 
             for i in range(4):
+                # print("Hi-3")
                 query_gfb = query_GFB[i]
                 query_gfb = query_gfb.reshape((1,2048))
                 Label = query_labels[i]
@@ -96,6 +97,7 @@ def test():
                 rank_list_2 = []
 
                 for test_step, test_dic in enumerate(veri_test_loader):
+                    # print("Hi-4")
                     test_images = test_dic['image'].squeeze().to(device)
                     test_labels = test_dic['label'].squeeze().type(torch.LongTensor).to(device)
                     test_output = the_model(test_images,test_labels)
@@ -113,14 +115,13 @@ def test():
                     # rank_list_3.append(CC3)'''
 
                     test_GFB = test_output[2][1]
-                    # print(test_GFB)
 
                     for j in range(4):
+                        # print("Hi-5")
                         test_gfb = test_GFB[j]
                         test_gfb = test_gfb.reshape((1,2048))
                         CC2 = cos(test_gfb,query_gfb)
                         rank_list_2.append(CC2)
-                # print(len(rank_list_2))
 
                 a = rank_list_2.index(max(rank_list_2))
                 print(a)
@@ -128,7 +129,7 @@ def test():
                 pred = torch.tensor(pred).to(device)
                 print(pred)
                 
-                ''' #print(" ")
+                '''#print(" ")
                 L_slb = test_output[1]
                 # print("L_slb: ",L_slb)
                 L_gfb = test_output[3]
@@ -146,9 +147,8 @@ def test():
                 print(" ")
                 print("Prediction: ",pred)
                 print("Test_labels: ",test_labels)
-                print(" ")'''
-
-                # n_samples += query_labels.size(0)
+                print(" ")
+                '''
 
                 correct += (pred == Label).sum().item()
                 print(" ")
