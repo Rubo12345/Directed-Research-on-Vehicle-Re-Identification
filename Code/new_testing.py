@@ -27,7 +27,36 @@ dataset_dir,img_train_path, img_test_path,img_query_path = directory_paths()
 # veri_loader, veri = get_new_data.data_loader(img_train_path,4,True)
 veri_test_loader, veri_test = get_new_data.data_loader(img_test_path,4,False)
 veri_query_loader, veri_query = get_new_data.data_loader(img_query_path,4,False)
-print(len(veri_query_loader))
+# print(len(veri_query_loader))
+
+def show_images(images, labels,preds):
+    plt.figure(figsize=(80, 40))
+    for i, image in enumerate(images):
+        plt.subplot(1,4, i + 1, xticks=[], yticks=[])
+        image = image.numpy().transpose((1, 2, 0))
+        mean = np.array([0.485, 0.456, 0.406])
+        std = np.array([0.229, 0.224, 0.225])
+        image = image * std + mean
+        image = np.clip(image, 0., 1.)
+        plt.imshow(image)
+        col = 'green'
+        if preds[i] != labels[i]:
+            col = 'red'
+        # plt.xlabel(f'{class_names[class_names.index(str(int(labels[i].numpy())))]}')
+        # plt.ylabel(f'{class_names[class_names.index(str(int(preds[i].numpy())))]}', color=col)
+    plt.tight_layout()
+    plt.show()
+
+def show_plot(loader):
+    for index, dic in enumerate(loader):
+        images_batch = dic['image'].squeeze()
+        labels_batch = dic['label'].squeeze()
+        # print(images_batch.shape)
+        print(labels_batch)
+        show_images(images_batch,labels_batch,labels_batch)
+
+# show_plot(veri_query_loader)
+
 def Optimizer(optim, param_groups, lr):
     if optim == 'adam':
         return torch.optim.Adam(param_groups, lr, weight_decay=5e-4,eps = 1e-8,
