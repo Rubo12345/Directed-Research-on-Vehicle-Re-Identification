@@ -64,8 +64,8 @@ def save_pkl_folder(Data, Data_Label, path,i):
 
 def get_data(train_dir,train_list,test_dir,test_list,query_dir,query_list,train_size,test_size,query_size):
     train_data = V.process_dir(train_dir,train_list, relabel=True)
-    test_data = V.process_dir(test_dir,test_list, relabel=True)
-    query_data = V.process_dir(query_dir,query_list, relabel=True)
+    test_data = V.process_dir(test_dir,test_list, relabel=False)
+    query_data = V.process_dir(query_dir,query_list, relabel=False)
     
     for image in range(train_size):
         train_img = input_to_4d_tensor(train_data[image][0])
@@ -85,7 +85,7 @@ def get_data(train_dir,train_list,test_dir,test_list,query_dir,query_list,train_
         save_pkl_folder(query_img,query_label,img_query_path,image)
     return train_data, test_data, query_data
 
-train_data, test_data, query_data = get_data(train_dir,train_list,test_dir,test_list,query_dir,query_list,40,11576,28) #37746,11579,1678
+train_data, test_data, query_data = get_data(train_dir,train_list,test_dir,test_list,query_dir,query_list,40,5600,28) #37746,11579,1678
 
 class Veri(Dataset):
     """dataset."""
